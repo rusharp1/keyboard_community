@@ -10,17 +10,20 @@
 ## 현재 상태
 
 - **배포**: https://keyboard-community.vercel.app/ — GitHub `rusharp1/keyboard_community`(Public), `main` push마다 Vercel 자동 재배포. 로컬 dev 서버는 검증용으로 켜둠.
+- **로컬 dev는 `next dev --webpack`** (package.json). Turbopack dev 워커가 키캡 동적 라우트 렌더 중 크래시("Jest worker ... child process exceptions")해서 webpack으로 회피. `next build`(프로덕션)는 Turbopack 정상.
 - **축 도감 `/switches`** — 약 105종(큐레이션 15 + geonlab 스토어 ~90).
-- **키캡 도감 `/keycaps`** — 29종.
+- **키캡 도감 `/keycaps`** — 38종(JTK 1 + AKKO 37). 제조사 식별 세트만 수록. 카드/상세에 프로파일·재질·대표 색감 표시, 제조사 필터, 상세에 공식 구매처(buyUrl) 링크.
 - `/community`, `/login` 은 자리표시 stub.
 
 ---
 
 ## 알아둘 결정 (코드만 봐선 모르는 것)
 
-- **데이터 출처**: 원본 목록은 `docs/sources/`에 보관 — `keycaps-list.txt`(파일명은 '스위치'지만 실제 키캡) → `src/data/keycaps.ts`, `switches-naver-list.txt`(geonlab 판매 목록) → `src/data/switches.ts`. 네이버 스토어는 봇 차단이라 사용자가 직접 붙여넣어 줌.
+- **데이터 출처**:
+  - 축 — `docs/sources/switches-naver-list.txt`(geonlab 판매 목록) → `src/data/switches.ts`. 네이버 스토어는 봇 차단이라 사용자가 직접 붙여넣어 줌.
+  - 키캡 — **제조사 식별 세트만 수록**. AKKO 37종은 akkogear.kr(Shopify)에서 가져옴: 대표 색 팔레트는 실제 제품 이미지로 실측, 프로파일/재질은 제품 `tags`(예: "MOG Profile", "PBT Double-Shot"), 구매링크는 `<제품URL>` → `buyUrl`. 제품 데이터는 `https://akkogear.kr/products/<handle>.json` 으로 조회 가능. 기존 추정 키캡 목록(`docs/sources/keycaps-list.txt`)은 제조사 불명이라 도감에서 제외.
 - **저소음/자석축은 방식과 별개 속성**(`silent`/`magnetic`) — "리니어+저소음", "리니어+자석축"처럼 동시 표현. 토글 필터로 분리.
-- **스토어 축·키캡 데이터는 부분만 정확**: 잘 알려진 것만 스펙/색 채움, 니치 항목은 `needsInfo`로 표기(추정·공란). 사용자 제공 시 갱신.
+- **데이터 정확도**: 축은 잘 알려진 것만 스펙/색 채움, 니치 항목은 `needsInfo`로 표기(추정·공란). AKKO 키캡은 공식 자료로 검증 완료라 `needsInfo` 없음. (AKKO 컬렉션엔 도자기/PC 재질 제품 없음 — 전부 PBT, 8주년 아티산만 티타늄 합금.) 사용자 제공 시 갱신.
 - **브랜드 그룹핑**: 랩터/RAW 계열 → `Geon`, 제조사 불명확 → `기타`. (요청 시 조정)
 - **인스타그램**: 공개 해시태그 API 폐지 → 임베드 불가. `explore/tags/{태그}` 외부 링크로만 연결.
 - **기본값**: UI 한국어(축 이름 영문 병기), 미니멀 다크. 로그인은 이메일+구글 예정(카카오 이후).

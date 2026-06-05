@@ -14,25 +14,24 @@ export default function SwitchCard({ sw }: { sw: Keyswitch }) {
       href={`/switches/${sw.slug}`}
       className="group flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-accent/60 hover:bg-surface-2"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <span
-            aria-hidden
-            className="h-9 w-9 shrink-0 rounded-lg border border-border"
-            style={{
-              backgroundColor: sw.colorHex ?? "var(--surface-2)",
-            }}
-          />
-          <div>
-            <div className="font-semibold leading-tight">{sw.nameKo}</div>
-            {sw.nameEn && <div className="text-xs text-muted">{sw.nameEn}</div>}
-          </div>
+      <div className="flex items-center gap-3">
+        <span
+          aria-hidden
+          className="h-9 w-9 shrink-0 rounded-lg border border-border"
+          style={{
+            backgroundColor: sw.colorHex ?? "var(--surface-2)",
+          }}
+        />
+        <div className="min-w-0">
+          <div className="font-semibold leading-tight">{sw.nameKo}</div>
+          {sw.nameEn && <div className="text-xs text-muted">{sw.nameEn}</div>}
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <TypeBadge type={sw.type} />
-          {sw.magnetic && <MagneticBadge />}
-          {sw.silent && <SilentBadge />}
-        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        <TypeBadge type={sw.type} />
+        {sw.magnetic && <MagneticBadge />}
+        {sw.silent && <SilentBadge />}
       </div>
 
       {sw.feelSummary && (

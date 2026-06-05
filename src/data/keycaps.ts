@@ -546,6 +546,18 @@ export function getMakers(): string[] {
   ).sort();
 }
 
+export function getProfiles(): string[] {
+  return Array.from(
+    new Set(keycaps.map((k) => k.profile).filter((p): p is string => !!p))
+  ).sort();
+}
+
+export function getMaterials(): string[] {
+  return Array.from(
+    new Set(keycaps.map((k) => k.material).filter((m): m is string => !!m))
+  ).sort();
+}
+
 /** 네이버 쇼핑 검색 링크 (구매처 탐색용) */
 export function naverShopSearchUrl(name: string): string {
   return `https://search.shopping.naver.com/search/all?query=${encodeURIComponent(

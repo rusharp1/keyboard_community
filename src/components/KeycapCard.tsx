@@ -30,6 +30,21 @@ export default function KeycapCard({ kc }: { kc: Keycap }) {
         )}
       </div>
 
+      {(kc.profile || kc.material) && (
+        <div className="flex flex-wrap gap-1.5">
+          {kc.profile && (
+            <span className="rounded-md border border-accent/40 bg-accent/10 px-2 py-0.5 text-xs font-medium">
+              {kc.profile}
+            </span>
+          )}
+          {kc.material && (
+            <span className="rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs text-muted">
+              {kc.material}
+            </span>
+          )}
+        </div>
+      )}
+
       <p className="text-sm text-muted line-clamp-2">{kc.theme}</p>
     </Link>
   );
