@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { type Keyswitch } from "@/data/switches";
-import TypeBadge, { SilentBadge } from "./TypeBadge";
+import TypeBadge, { SilentBadge, MagneticBadge } from "./TypeBadge";
 
 export default function SwitchCard({ sw }: { sw: Keyswitch }) {
+  const stats = [
+    sw.actuationForce != null && `작동 ${sw.actuationForce}g`,
+    sw.bottomOutForce != null && `바닥 ${sw.bottomOutForce}g`,
+    sw.totalTravel != null && `${sw.totalTravel}mm`,
+  ].filter(Boolean) as string[];
+
   return (
     <Link
       href={`/switches/${sw.slug}`}
@@ -13,26 +19,33 @@ export default function SwitchCard({ sw }: { sw: Keyswitch }) {
           <span
             aria-hidden
             className="h-9 w-9 shrink-0 rounded-lg border border-border"
-            style={{ backgroundColor: sw.colorHex }}
+            style={{
+              backgroundColor: sw.colorHex ?? "var(--surface-2)",
+            }}
           />
           <div>
             <div className="font-semibold leading-tight">{sw.nameKo}</div>
-            <div className="text-xs text-muted">{sw.nameEn}</div>
+            {sw.nameEn && <div className="text-xs text-muted">{sw.nameEn}</div>}
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-1">
           <TypeBadge type={sw.type} />
+          {sw.magnetic && <MagneticBadge />}
           {sw.silent && <SilentBadge />}
         </div>
       </div>
 
-      <p className="text-sm text-muted line-clamp-2">{sw.feelSummary}</p>
+      {sw.feelSummary && (
+        <p className="text-sm text-muted line-clamp-2">{sw.feelSummary}</p>
+      )}
 
-      <div className="mt-auto flex items-center gap-4 text-xs text-muted">
-        <span>작동 {sw.actuationForce}g</span>
-        <span>바닥 {sw.bottomOutForce}g</span>
-        <span>{sw.totalTravel}mm</span>
-      </div>
+      {stats.length > 0 && (
+        <div className="mt-auto flex items-center gap-4 text-xs text-muted">
+          {stats.map((s) => (
+            <span key={s}>{s}</span>
+          ))}
+        </div>
+      )}
     </Link>
   );
 }

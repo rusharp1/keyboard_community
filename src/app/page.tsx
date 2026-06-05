@@ -3,6 +3,7 @@ import {
   switches,
   SWITCH_TYPE_META,
   SILENT_META,
+  MAGNETIC_META,
   type SwitchType,
 } from "@/data/switches";
 import { keycaps } from "@/data/keycaps";
@@ -18,6 +19,7 @@ const categoryCards = [
     ...SWITCH_TYPE_META[t],
   })),
   { href: "/switches?silent=1", ...SILENT_META },
+  { href: "/switches?magnetic=1", ...MAGNETIC_META },
 ];
 
 export default function Home() {

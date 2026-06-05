@@ -6,9 +6,10 @@ import {
   getAllSlugs,
   youtubeSearchUrl,
   instagramTagUrl,
+  naverShopSearchUrl,
   SWITCH_TYPE_META,
 } from "@/data/switches";
-import TypeBadge, { SilentBadge } from "@/components/TypeBadge";
+import TypeBadge, { SilentBadge, MagneticBadge } from "@/components/TypeBadge";
 
 export function generateStaticParams() {
   return getAllSlugs().map((slug) => ({ slug }));
@@ -22,9 +23,13 @@ export async function generateMetadata({
   const { slug } = await params;
   const sw = getSwitchBySlug(slug);
   if (!sw) return { title: "축을 찾을 수 없음" };
+  const desc =
+    sw.feelSummary ??
+    sw.soundProfile ??
+    `${SWITCH_TYPE_META[sw.type].labelKo} 스위치`;
   return {
-    title: `${sw.nameKo} (${sw.nameEn}) — 키보드 커뮤니티`,
-    description: `${sw.feelSummary}. 작동압력 ${sw.actuationForce}g · ${sw.soundProfile}`,
+    title: `${sw.nameKo}${sw.nameEn ? ` (${sw.nameEn})` : ""} — 키보드 커뮤니티`,
+    description: desc,
   };
 }
 
@@ -38,20 +43,34 @@ export default async function SwitchDetail({
   if (!sw) notFound();
 
   const typeMeta = SWITCH_TYPE_META[sw.type];
+  const tags: string[] = [];
+  if (sw.magnetic) tags.push("자석축");
+  if (sw.silent) tags.push("저소음");
 
   const specs = [
     {
       label: "종류",
       value:
         `${typeMeta.labelKo} (${typeMeta.labelEn})` +
-        (sw.silent ? " · 저소음" : ""),
+        (tags.length ? ` · ${tags.join(" · ")}` : ""),
     },
     { label: "제조사", value: sw.brand },
-    { label: "색상", value: sw.color },
-    { label: "작동 압력", value: `${sw.actuationForce} g` },
-    { label: "바닥압", value: `${sw.bottomOutForce} g` },
-    { label: "총 이동거리", value: `${sw.totalTravel} mm` },
-  ];
+    sw.color && { label: "색상", value: sw.color },
+    sw.actuationForce != null && {
+      label: "작동 압력",
+      value: `${sw.actuationForce} g`,
+    },
+    sw.bottomOutForce != null && {
+      label: "바닥압",
+      value: `${sw.bottomOutForce} g`,
+    },
+    sw.totalTravel != null && {
+      label: "총 이동거리",
+      value: `${sw.totalTravel} mm`,
+    },
+  ].filter(Boolean) as { label: string; value: string }[];
+
+  const hasYoutube = (sw.youtubeVideoIds?.length ?? 0) > 0;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -64,19 +83,27 @@ export default async function SwitchDetail({
         <span
           aria-hidden
           className="h-14 w-14 shrink-0 rounded-xl border border-border"
-          style={{ backgroundColor: sw.colorHex }}
+          style={{ backgroundColor: sw.colorHex ?? "var(--surface-2)" }}
         />
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold">{sw.nameKo}</h1>
             <TypeBadge type={sw.type} />
+            {sw.magnetic && <MagneticBadge />}
             {sw.silent && <SilentBadge />}
           </div>
-          <p className="text-muted">{sw.nameEn}</p>
+          {sw.nameEn && <p className="text-muted">{sw.nameEn}</p>}
         </div>
       </div>
 
-      <p className="mt-6 leading-relaxed">{sw.description}</p>
+      {sw.description && <p className="mt-6 leading-relaxed">{sw.description}</p>}
+
+      {sw.needsInfo && (
+        <p className="mt-4 rounded-lg border border-border bg-surface p-3 text-xs text-muted">
+          ℹ️ 신생/니치 축이라 공개 스펙이 제한적입니다. 일부 정보는 추정이거나
+          비어 있을 수 있어요. 정확한 압력·키감을 알려주시면 채워 넣을게요.
+        </p>
+      )}
 
       {/* 스펙 */}
       <h2 className="mt-8 mb-3 text-lg font-bold">스펙</h2>
@@ -90,23 +117,29 @@ export default async function SwitchDetail({
       </dl>
 
       {/* 키감 / 소리 요약 */}
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <div className="text-xs text-muted">키감</div>
-          <div className="mt-1">{sw.feelSummary}</div>
+      {(sw.feelSummary || sw.soundProfile) && (
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {sw.feelSummary && (
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <div className="text-xs text-muted">키감</div>
+              <div className="mt-1">{sw.feelSummary}</div>
+            </div>
+          )}
+          {sw.soundProfile && (
+            <div className="rounded-xl border border-border bg-surface p-4">
+              <div className="text-xs text-muted">소리 성향</div>
+              <div className="mt-1">{sw.soundProfile}</div>
+            </div>
+          )}
         </div>
-        <div className="rounded-xl border border-border bg-surface p-4">
-          <div className="text-xs text-muted">소리 성향</div>
-          <div className="mt-1">{sw.soundProfile}</div>
-        </div>
-      </div>
+      )}
 
       {/* 타건음 듣기 */}
       <h2 className="mt-8 mb-3 text-lg font-bold">🔊 타건음 들어보기</h2>
 
-      {sw.youtubeVideoIds.length > 0 ? (
+      {hasYoutube ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {sw.youtubeVideoIds.map((id) => (
+          {sw.youtubeVideoIds!.map((id) => (
             <div
               key={id}
               className="aspect-video overflow-hidden rounded-xl border border-border"
@@ -132,7 +165,27 @@ export default async function SwitchDetail({
           <span>
             <span className="font-medium">유튜브에서 타건음 검색</span>
             <span className="block text-sm text-muted">
-              “{sw.nameEn} switch sound test” 결과 보기
+              “{sw.nameEn ?? sw.nameKo} sound test” 결과 보기
+            </span>
+          </span>
+          <span aria-hidden className="text-muted">
+            ↗
+          </span>
+        </a>
+      )}
+
+      {/* 스토어 축이면 구매처 링크 */}
+      {sw.source === "store" && (
+        <a
+          href={naverShopSearchUrl(sw.nameKo)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 flex items-center justify-between rounded-xl border border-border bg-surface p-4 transition-colors hover:bg-surface-2"
+        >
+          <span>
+            <span className="font-medium">네이버에서 구매처·정보 보기</span>
+            <span className="block text-sm text-muted">
+              “{sw.nameKo} 스위치” 쇼핑 검색
             </span>
           </span>
           <span aria-hidden className="text-muted">

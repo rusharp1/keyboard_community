@@ -1,6 +1,7 @@
 import {
   SWITCH_TYPE_META,
   SILENT_META,
+  MAGNETIC_META,
   type SwitchType,
 } from "@/data/switches";
 
@@ -31,4 +32,8 @@ export default function TypeBadge({ type }: { type: SwitchType }) {
 
 export function SilentBadge() {
   return <Badge label={SILENT_META.labelKo} accent={SILENT_META.accent} />;
+}
+
+export function MagneticBadge() {
+  return <Badge label={MAGNETIC_META.labelKo} accent={MAGNETIC_META.accent} />;
 }

@@ -10,12 +10,13 @@ export const metadata: Metadata = {
 export default async function SwitchesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; silent?: string }>;
+  searchParams: Promise<{ type?: string; silent?: string; magnetic?: string }>;
 }) {
-  const { type, silent } = await searchParams;
+  const { type, silent, magnetic } = await searchParams;
   const initialType =
     type && type in SWITCH_TYPE_META ? (type as SwitchType) : undefined;
   const initialSilent = silent === "1" || silent === "true";
+  const initialMagnetic = magnetic === "1" || magnetic === "true";
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -25,7 +26,11 @@ export default async function SwitchesPage({
       </p>
 
       <div className="mt-6">
-        <SwitchExplorer initialType={initialType} initialSilent={initialSilent} />
+        <SwitchExplorer
+          initialType={initialType}
+          initialSilent={initialSilent}
+          initialMagnetic={initialMagnetic}
+        />
       </div>
     </div>
   );
