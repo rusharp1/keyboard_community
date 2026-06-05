@@ -28,7 +28,7 @@ export default function SwitchCard({ sw }: { sw: Keyswitch }) {
             {sw.nameEn && <div className="text-xs text-muted">{sw.nameEn}</div>}
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+        <div className="flex shrink-0 flex-col items-end gap-1">
           <TypeBadge type={sw.type} />
           {sw.magnetic && <MagneticBadge />}
           {sw.silent && <SilentBadge />}

@@ -10,6 +10,7 @@ import {
   type SwitchType,
 } from "@/data/switches";
 import SwitchCard from "./SwitchCard";
+import SearchableSelect from "./SearchableSelect";
 
 const types = Object.keys(SWITCH_TYPE_META) as SwitchType[];
 
@@ -81,29 +82,26 @@ export default function SwitchExplorer({
           onClick={() => setSilentOnly((v) => !v)}
           dot={SILENT_META.accent}
         >
-          저소음만
+          저소음
         </FilterChip>
         <FilterChip
           active={magneticOnly}
           onClick={() => setMagneticOnly((v) => !v)}
           dot={MAGNETIC_META.accent}
         >
-          자석축만
+          자석축
         </FilterChip>
 
-        {/* 제조사 필터 */}
-        <select
-          value={brand}
-          onChange={(e) => setBrand(e.target.value)}
-          className="ml-auto rounded-full border border-border bg-surface px-3 py-1.5 text-sm outline-none focus:border-accent"
-        >
-          <option value="all">모든 제조사</option>
-          {brands.map((b) => (
-            <option key={b} value={b}>
-              {b}
-            </option>
-          ))}
-        </select>
+        {/* 제조사 필터 (검색 가능) */}
+        <div className="ml-auto">
+          <SearchableSelect
+            value={brand}
+            onChange={setBrand}
+            options={brands}
+            allLabel="모든 제조사"
+            searchPlaceholder="제조사 검색..."
+          />
+        </div>
       </div>
 
       {/* 결과 */}

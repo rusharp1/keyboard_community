@@ -64,8 +64,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 축 종류 소개 */}
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* 축 종류 소개 (1행: 방식 3종, 2행: 저소음·자석축) */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {categoryCards.map((meta) => (
           <Link
             key={meta.href}

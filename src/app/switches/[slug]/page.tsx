@@ -174,25 +174,23 @@ export default async function SwitchDetail({
         </a>
       )}
 
-      {/* 스토어 축이면 구매처 링크 */}
-      {sw.source === "store" && (
-        <a
-          href={naverShopSearchUrl(sw.nameKo)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 flex items-center justify-between rounded-xl border border-border bg-surface p-4 transition-colors hover:bg-surface-2"
-        >
-          <span>
-            <span className="font-medium">네이버에서 구매처·정보 보기</span>
-            <span className="block text-sm text-muted">
-              “{sw.nameKo} 스위치” 쇼핑 검색
-            </span>
+      {/* 네이버 검색 링크 (구매처·정보·사진) — 모든 축에 표시 */}
+      <a
+        href={naverShopSearchUrl(sw.nameKo)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 flex items-center justify-between rounded-xl border border-border bg-surface p-4 transition-colors hover:bg-surface-2"
+      >
+        <span>
+          <span className="font-medium">네이버에서 구매처·정보 보기</span>
+          <span className="block text-sm text-muted">
+            “{sw.nameKo} 스위치” 쇼핑 검색
           </span>
-          <span aria-hidden className="text-muted">
-            ↗
-          </span>
-        </a>
-      )}
+        </span>
+        <span aria-hidden className="text-muted">
+          ↗
+        </span>
+      </a>
 
       {/* 인스타그램 해시태그 */}
       <h3 className="mt-6 mb-2 text-sm font-semibold text-muted">
