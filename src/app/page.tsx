@@ -5,7 +5,9 @@ import {
   SILENT_META,
   type SwitchType,
 } from "@/data/switches";
+import { keycaps } from "@/data/keycaps";
 import SwitchCard from "@/components/SwitchCard";
+import KeycapCard from "@/components/KeycapCard";
 
 const types = Object.keys(SWITCH_TYPE_META) as SwitchType[];
 
@@ -20,6 +22,7 @@ const categoryCards = [
 
 export default function Home() {
   const featured = switches.slice(0, 6);
+  const featuredKeycaps = keycaps.slice(0, 6);
 
   return (
     <div className="mx-auto max-w-5xl px-4">
@@ -43,6 +46,12 @@ export default function Home() {
             className="rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-foreground transition-opacity hover:opacity-90"
           >
             축 도감 둘러보기
+          </Link>
+          <Link
+            href="/keycaps"
+            className="rounded-lg border border-border bg-surface px-5 py-2.5 font-medium transition-colors hover:bg-surface-2"
+          >
+            키캡 도감
           </Link>
           <Link
             href="/community"
@@ -86,6 +95,21 @@ export default function Home() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {featured.map((sw) => (
             <SwitchCard key={sw.slug} sw={sw} />
+          ))}
+        </div>
+      </section>
+
+      {/* 추천 키캡 */}
+      <section className="mt-12">
+        <div className="mb-4 flex items-end justify-between">
+          <h2 className="text-xl font-bold">키캡 둘러보기</h2>
+          <Link href="/keycaps" className="text-sm text-muted hover:text-foreground">
+            전체 보기 →
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {featuredKeycaps.map((kc) => (
+            <KeycapCard key={kc.slug} kc={kc} />
           ))}
         </div>
       </section>

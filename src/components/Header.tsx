@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const nav = [
   { href: "/switches", label: "축 도감" },
+  { href: "/keycaps", label: "키캡 도감" },
   { href: "/community", label: "커뮤니티" },
 ];
 
