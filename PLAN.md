@@ -12,7 +12,8 @@
 - **배포**: https://keyboard-community.vercel.app/ — GitHub `rusharp1/keyboard_community`(Public), `main` push마다 Vercel 자동 재배포. 로컬 dev 서버는 검증용으로 켜둠.
 - **로컬 dev는 `next dev --webpack`** (package.json). Turbopack dev 워커가 키캡 동적 라우트 렌더 중 크래시("Jest worker ... child process exceptions")해서 webpack으로 회피. `next build`(프로덕션)는 Turbopack 정상.
 - **축 도감 `/switches`** — 약 105종(큐레이션 15 + geonlab 스토어 ~90).
-- **키캡 도감 `/keycaps`** — 38종(JTK 1 + AKKO 37). 제조사 식별 세트만 수록. 카드/상세에 프로파일·재질·대표 색감 표시, 제조사 필터, 상세에 공식 구매처(buyUrl) 링크.
+- **키캡 도감 `/keycaps`** — 38종(JTK 1 + AKKO 37). 제조사 식별 세트만 수록. 카드/상세에 프로파일·재질·대표 색감 표시, **제조사·프로파일·재질 드롭다운 필터**(`SearchableSelect`, 검색 가능), 상세에 공식 구매처(buyUrl) 링크.
+- **공용 UI 패턴**: 검색 가능한 드롭다운은 `src/components/SearchableSelect.tsx` 재사용(축·키캡 공통). 카드(`SwitchCard`/`KeycapCard`)는 배지/칩을 헤더 아래 가로 줄(`flex flex-wrap`)로 두어 같은 행 카드 높이를 균일하게 유지.
 - `/community`, `/login` 은 자리표시 stub.
 
 ---
