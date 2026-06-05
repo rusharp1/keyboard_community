@@ -3,14 +3,18 @@
 // youtubeVideoIds 에 검증된 타건음 영상 ID를 넣으면 상세 페이지에 임베드로 표시됩니다.
 // 비어 있으면 유튜브 검색 링크로 자동 폴백합니다.
 
-export type SwitchType = "linear" | "tactile" | "clicky" | "silent";
+// 축의 "방식"은 셋 중 하나로 상호 배타적. 저소음은 그 위에 덧붙는 별개 속성.
+export type SwitchType = "linear" | "tactile" | "clicky";
 
 export interface Keyswitch {
   slug: string;
   nameKo: string;
   nameEn: string;
   brand: string;
+  /** 축 방식 (리니어/택타일/클릭키 중 하나) */
   type: SwitchType;
+  /** 저소음(댐퍼) 여부 — 예: 리니어 + 저소음 */
+  silent?: boolean;
   /** 대표 색상 표시 이름 */
   color: string;
   /** 대표 색상 HEX (배지/칩 표시에 사용) */
@@ -55,12 +59,14 @@ export const SWITCH_TYPE_META: Record<
     desc: "걸림감과 함께 '딸깍' 소리가 나는 축. 경쾌한 타건음을 좋아한다면.",
     accent: "#3b82f6",
   },
-  silent: {
-    labelKo: "저소음",
-    labelEn: "Silent",
-    desc: "댐퍼로 소음을 줄인 축. 사무실/야간/공용 공간에 적합.",
-    accent: "#10b981",
-  },
+};
+
+// 저소음은 종류가 아니라 별개 속성이라 따로 둔다. (배지/필터에서 사용)
+export const SILENT_META = {
+  labelKo: "저소음",
+  labelEn: "Silent",
+  desc: "댐퍼로 바닥/복귀 소음을 줄인 축. 리니어·택타일 등 어떤 방식에도 붙을 수 있음. 사무실/야간/공용 공간에 적합.",
+  accent: "#10b981",
 };
 
 export const switches: Keyswitch[] = [
@@ -212,6 +218,25 @@ export const switches: Keyswitch[] = [
     instagramTags: ["보바U4T", "bobau4t", "gazzew"],
   },
   {
+    slug: "boba-u4",
+    nameKo: "보바 U4",
+    nameEn: "Gazzew Boba U4",
+    brand: "Gazzew",
+    type: "tactile",
+    silent: true,
+    color: "더스티 브라운",
+    colorHex: "#4a3528",
+    actuationForce: 62,
+    bottomOutForce: 68,
+    totalTravel: 4.0,
+    soundProfile: "걸림감은 유지하되 댐퍼로 조용한 소리",
+    feelSummary: "보바 U4T의 저소음 버전 (택타일 + 저소음)",
+    description:
+      "인기 택타일 U4T에 저소음 댐퍼를 더한 버전. 확실한 걸림감(구분감)을 그대로 살리면서 바닥/복귀 소음을 줄여, 조용한 환경에서 택타일을 쓰고 싶을 때 좋은 선택입니다.",
+    youtubeVideoIds: [],
+    instagramTags: ["보바U4", "bobau4", "저소음택타일"],
+  },
+  {
     slug: "holy-panda",
     nameKo: "홀리판다",
     nameEn: "Holy Panda",
@@ -286,13 +311,14 @@ export const switches: Keyswitch[] = [
     instagramTags: ["박스화이트", "kailhboxwhite", "kailh"],
   },
 
-  // ───────────────── 저소음 ─────────────────
+  // ───────────────── 저소음 (리니어 + 저소음) ─────────────────
   {
     slug: "cherry-mx-silent-red",
     nameKo: "체리 저소음 적축",
     nameEn: "Cherry MX Silent Red",
     brand: "Cherry",
-    type: "silent",
+    type: "linear",
+    silent: true,
     color: "핑크/레드",
     colorHex: "#c75b6b",
     actuationForce: 45,
@@ -310,7 +336,8 @@ export const switches: Keyswitch[] = [
     nameKo: "게이트론 저소음 적축",
     nameEn: "Gateron Silent Red",
     brand: "Gateron",
-    type: "silent",
+    type: "linear",
+    silent: true,
     color: "레드",
     colorHex: "#b34a4a",
     actuationForce: 45,

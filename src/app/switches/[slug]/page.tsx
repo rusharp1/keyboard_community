@@ -8,7 +8,7 @@ import {
   instagramTagUrl,
   SWITCH_TYPE_META,
 } from "@/data/switches";
-import TypeBadge from "@/components/TypeBadge";
+import TypeBadge, { SilentBadge } from "@/components/TypeBadge";
 
 export function generateStaticParams() {
   return getAllSlugs().map((slug) => ({ slug }));
@@ -40,7 +40,12 @@ export default async function SwitchDetail({
   const typeMeta = SWITCH_TYPE_META[sw.type];
 
   const specs = [
-    { label: "종류", value: `${typeMeta.labelKo} (${typeMeta.labelEn})` },
+    {
+      label: "종류",
+      value:
+        `${typeMeta.labelKo} (${typeMeta.labelEn})` +
+        (sw.silent ? " · 저소음" : ""),
+    },
     { label: "제조사", value: sw.brand },
     { label: "색상", value: sw.color },
     { label: "작동 압력", value: `${sw.actuationForce} g` },
@@ -62,9 +67,10 @@ export default async function SwitchDetail({
           style={{ backgroundColor: sw.colorHex }}
         />
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold">{sw.nameKo}</h1>
             <TypeBadge type={sw.type} />
+            {sw.silent && <SilentBadge />}
           </div>
           <p className="text-muted">{sw.nameEn}</p>
         </div>

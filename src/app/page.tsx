@@ -1,8 +1,22 @@
 import Link from "next/link";
-import { switches, SWITCH_TYPE_META, type SwitchType } from "@/data/switches";
+import {
+  switches,
+  SWITCH_TYPE_META,
+  SILENT_META,
+  type SwitchType,
+} from "@/data/switches";
 import SwitchCard from "@/components/SwitchCard";
 
 const types = Object.keys(SWITCH_TYPE_META) as SwitchType[];
+
+// 종류 카드: 방식 3종 + 별개 속성인 저소음(저소음만 필터로 이동)
+const categoryCards = [
+  ...types.map((t) => ({
+    href: `/switches?type=${t}`,
+    ...SWITCH_TYPE_META[t],
+  })),
+  { href: "/switches?silent=1", ...SILENT_META },
+];
 
 export default function Home() {
   const featured = switches.slice(0, 6);
@@ -41,27 +55,24 @@ export default function Home() {
 
       {/* 축 종류 소개 */}
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {types.map((t) => {
-          const meta = SWITCH_TYPE_META[t];
-          return (
-            <Link
-              key={t}
-              href={`/switches?type=${t}`}
-              className="rounded-xl border border-border bg-surface p-4 transition-colors hover:bg-surface-2"
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  aria-hidden
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: meta.accent }}
-                />
-                <span className="font-semibold">{meta.labelKo}</span>
-                <span className="text-xs text-muted">{meta.labelEn}</span>
-              </div>
-              <p className="mt-2 text-sm text-muted line-clamp-3">{meta.desc}</p>
-            </Link>
-          );
-        })}
+        {categoryCards.map((meta) => (
+          <Link
+            key={meta.href}
+            href={meta.href}
+            className="rounded-xl border border-border bg-surface p-4 transition-colors hover:bg-surface-2"
+          >
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: meta.accent }}
+              />
+              <span className="font-semibold">{meta.labelKo}</span>
+              <span className="text-xs text-muted">{meta.labelEn}</span>
+            </div>
+            <p className="mt-2 text-sm text-muted line-clamp-3">{meta.desc}</p>
+          </Link>
+        ))}
       </section>
 
       {/* 추천 축 */}

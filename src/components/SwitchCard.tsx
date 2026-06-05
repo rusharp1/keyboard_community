@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { type Keyswitch } from "@/data/switches";
-import TypeBadge from "./TypeBadge";
+import TypeBadge, { SilentBadge } from "./TypeBadge";
 
 export default function SwitchCard({ sw }: { sw: Keyswitch }) {
   return (
@@ -20,7 +20,10 @@ export default function SwitchCard({ sw }: { sw: Keyswitch }) {
             <div className="text-xs text-muted">{sw.nameEn}</div>
           </div>
         </div>
-        <TypeBadge type={sw.type} />
+        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+          <TypeBadge type={sw.type} />
+          {sw.silent && <SilentBadge />}
+        </div>
       </div>
 
       <p className="text-sm text-muted line-clamp-2">{sw.feelSummary}</p>

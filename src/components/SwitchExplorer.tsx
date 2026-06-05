@@ -5,6 +5,7 @@ import {
   switches,
   getBrands,
   SWITCH_TYPE_META,
+  SILENT_META,
   type SwitchType,
 } from "@/data/switches";
 import SwitchCard from "./SwitchCard";
@@ -13,11 +14,14 @@ const types = Object.keys(SWITCH_TYPE_META) as SwitchType[];
 
 export default function SwitchExplorer({
   initialType,
+  initialSilent = false,
 }: {
   initialType?: SwitchType;
+  initialSilent?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState<SwitchType | "all">(initialType ?? "all");
+  const [silentOnly, setSilentOnly] = useState(initialSilent);
   const [brand, setBrand] = useState<string>("all");
 
   const brands = useMemo(() => getBrands(), []);
@@ -26,6 +30,7 @@ export default function SwitchExplorer({
     const q = query.trim().toLowerCase();
     return switches.filter((s) => {
       if (type !== "all" && s.type !== type) return false;
+      if (silentOnly && !s.silent) return false;
       if (brand !== "all" && s.brand !== brand) return false;
       if (!q) return true;
       return (
@@ -35,7 +40,7 @@ export default function SwitchExplorer({
         s.color.toLowerCase().includes(q)
       );
     });
-  }, [query, type, brand]);
+  }, [query, type, silentOnly, brand]);
 
   return (
     <div>
@@ -63,6 +68,16 @@ export default function SwitchExplorer({
             {SWITCH_TYPE_META[t].labelKo}
           </FilterChip>
         ))}
+
+        {/* 저소음 토글 (방식과 별개 속성) */}
+        <span aria-hidden className="mx-1 h-4 w-px bg-border" />
+        <FilterChip
+          active={silentOnly}
+          onClick={() => setSilentOnly((v) => !v)}
+          dot={SILENT_META.accent}
+        >
+          저소음만
+        </FilterChip>
 
         {/* 제조사 필터 */}
         <select
