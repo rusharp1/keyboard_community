@@ -31,7 +31,7 @@ export default function KeycapExplorer() {
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="키캡 이름, 테마, 제조사로 검색 (예: 딸기케이크, JTK, 고양이)"
+        placeholder="키캡 이름, 테마, 제조사로 검색 (예: 버블검, JTK, AKKO)"
         className="w-full rounded-lg border border-border bg-surface px-4 py-2.5 text-sm outline-none placeholder:text-muted focus:border-accent"
       />
 

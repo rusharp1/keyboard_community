@@ -95,22 +95,44 @@ export default async function KeycapDetail({
 
       {/* 실제 모습 보기 */}
       <h2 className="mt-8 mb-3 text-lg font-bold">👀 실제 모습 보기</h2>
-      <a
-        href={naverShopSearchUrl(kc.nameKo)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 transition-colors hover:bg-surface-2"
-      >
-        <span>
-          <span className="font-medium">네이버에서 구매처·사진 보기</span>
-          <span className="block text-sm text-muted">
-            “{kc.nameKo} 키캡” 쇼핑 검색
+      <div className="flex flex-col gap-2">
+        {kc.buyUrl && (
+          <a
+            href={kc.buyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between rounded-xl border border-accent/40 bg-accent/10 p-4 transition-colors hover:bg-accent/15"
+          >
+            <span>
+              <span className="font-medium">
+                {kc.maker ?? "공식 스토어"} 공식 스토어에서 구매·사진 보기
+              </span>
+              <span className="block text-sm text-muted">
+                제품 페이지로 바로 이동
+              </span>
+            </span>
+            <span aria-hidden className="text-muted">
+              ↗
+            </span>
+          </a>
+        )}
+        <a
+          href={naverShopSearchUrl(kc.nameKo)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 transition-colors hover:bg-surface-2"
+        >
+          <span>
+            <span className="font-medium">네이버에서 구매처·사진 보기</span>
+            <span className="block text-sm text-muted">
+              “{kc.nameKo} 키캡” 쇼핑 검색
+            </span>
           </span>
-        </span>
-        <span aria-hidden className="text-muted">
-          ↗
-        </span>
-      </a>
+          <span aria-hidden className="text-muted">
+            ↗
+          </span>
+        </a>
+      </div>
 
       {/* 인스타그램 해시태그 */}
       <h3 className="mt-6 mb-2 text-sm font-semibold text-muted">
