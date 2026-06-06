@@ -77,7 +77,7 @@ export async function signUp(
   }
 
   const origin = await getOrigin();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -92,6 +92,17 @@ export async function signUp(
       return { fieldErrors: { nickname: "이미 사용 중인 닉네임입니다." } };
     }
     return { error: error.message };
+  }
+
+  // 이미 가입된(확인된) 이메일이면 Supabase 이메일 열거 방지로 인해
+  // error 없이 빈 identities로 응답한다(메일도 안 감) → 중복으로 처리.
+  if (data.user && (data.user.identities?.length ?? 0) === 0) {
+    return {
+      fieldErrors: {
+        email:
+          "이미 가입된 이메일입니다. 로그인하거나 '비밀번호를 잊으셨나요?'를 이용하세요.",
+      },
+    };
   }
 
   return {
