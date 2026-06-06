@@ -8,12 +8,15 @@ export default function SearchableSelect({
   options,
   allLabel = "전체",
   searchPlaceholder = "검색...",
+  align = "left",
 }: {
   value: string;
   onChange: (v: string) => void;
   options: string[];
   allLabel?: string;
   searchPlaceholder?: string;
+  /** 드롭다운 패널 정렬 — 버튼이 화면 오른쪽 끝이면 "right" */
+  align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -62,7 +65,11 @@ export default function SearchableSelect({
       </button>
 
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-56 rounded-lg border border-border bg-surface-2 p-2 shadow-lg">
+        <div
+          className={`absolute ${
+            align === "right" ? "right-0" : "left-0"
+          } z-20 mt-1 w-56 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-surface-2 p-2 shadow-lg`}
+        >
           <input
             autoFocus
             type="search"

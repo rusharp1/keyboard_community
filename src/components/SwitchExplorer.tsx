@@ -100,6 +100,7 @@ export default function SwitchExplorer({
             options={brands}
             allLabel="모든 제조사"
             searchPlaceholder="제조사 검색..."
+            align="right"
           />
         </div>
       </div>
