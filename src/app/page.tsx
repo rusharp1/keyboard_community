@@ -7,8 +7,10 @@ import {
   type SwitchType,
 } from "@/data/switches";
 import { keycaps } from "@/data/keycaps";
+import { keyboards } from "@/data/keyboards";
 import SwitchCard from "@/components/SwitchCard";
 import KeycapCard from "@/components/KeycapCard";
+import KeyboardCard from "@/components/KeyboardCard";
 
 const types = Object.keys(SWITCH_TYPE_META) as SwitchType[];
 
@@ -25,6 +27,7 @@ const categoryCards = [
 export default function Home() {
   const featured = switches.slice(0, 6);
   const featuredKeycaps = keycaps.slice(0, 6);
+  const featuredKeyboards = keyboards.slice(0, 6);
 
   return (
     <div className="mx-auto max-w-5xl px-4">
@@ -44,10 +47,16 @@ export default function Home() {
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
-            href="/switches"
+            href="/keyboards"
             className="rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-foreground transition-opacity hover:opacity-90"
           >
-            축 도감 둘러보기
+            키보드 도감 둘러보기
+          </Link>
+          <Link
+            href="/switches"
+            className="rounded-lg border border-border bg-surface px-5 py-2.5 font-medium transition-colors hover:bg-surface-2"
+          >
+            축 도감
           </Link>
           <Link
             href="/keycaps"
@@ -64,8 +73,23 @@ export default function Home() {
         </div>
       </section>
 
+      {/* 추천 키보드 */}
+      <section className="mt-4">
+        <div className="mb-4 flex items-end justify-between">
+          <h2 className="text-xl font-bold">키보드 둘러보기</h2>
+          <Link href="/keyboards" className="text-sm text-muted hover:text-foreground">
+            전체 보기 →
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {featuredKeyboards.map((kb) => (
+            <KeyboardCard key={kb.slug} kb={kb} />
+          ))}
+        </div>
+      </section>
+
       {/* 축 종류 소개 (1행: 방식 3종, 2행: 저소음·자석축) */}
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <section className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {categoryCards.map((meta) => (
           <Link
             key={meta.href}
@@ -114,6 +138,27 @@ export default function Home() {
             <KeycapCard key={kc.slug} kc={kc} />
           ))}
         </div>
+      </section>
+
+      {/* 커뮤니티 */}
+      <section className="mt-12 mb-4">
+        <div className="mb-4 flex items-end justify-between">
+          <h2 className="text-xl font-bold">커뮤니티</h2>
+        </div>
+        <Link
+          href="/community"
+          className="flex items-center justify-between rounded-xl border border-border bg-surface p-5 transition-colors hover:border-accent/60 hover:bg-surface-2"
+        >
+          <span>
+            <span className="font-medium">키보드 이야기를 나눠보세요</span>
+            <span className="block text-sm text-muted">
+              빌드 자랑·질문·정보 공유 공간 (준비 중)
+            </span>
+          </span>
+          <span aria-hidden className="text-muted">
+            →
+          </span>
+        </Link>
       </section>
     </div>
   );
