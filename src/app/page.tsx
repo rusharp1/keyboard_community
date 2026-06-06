@@ -89,27 +89,35 @@ export default function Home() {
       </section>
 
       {/* 축 종류 소개 (1행: 방식 3종, 2행: 저소음·자석축) */}
-      <section className="mt-12 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {categoryCards.map((meta) => (
-          <Link
-            key={meta.href}
-            href={meta.href}
-            className="rounded-xl border border-border bg-surface p-4 transition-colors hover:bg-surface-2"
-          >
-            <div className="flex items-center gap-2">
-              <span
-                aria-hidden
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: meta.accent }}
-              />
-              <span className="font-semibold">{meta.labelKo}</span>
-              <span className="text-xs text-muted">{meta.labelEn}</span>
-            </div>
-            <p className="mt-2 whitespace-pre-line text-sm text-muted line-clamp-3">
-              {meta.desc.replace("축. ", "축.\n")}
-            </p>
+      <section className="mt-12">
+        <div className="mb-4 flex items-end justify-between">
+          <h2 className="text-xl font-bold">축 종류로 찾기</h2>
+          <Link href="/switches" className="text-sm text-muted hover:text-foreground">
+            전체 보기 →
           </Link>
-        ))}
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {categoryCards.map((meta) => (
+            <Link
+              key={meta.href}
+              href={meta.href}
+              className="rounded-xl border border-border bg-surface p-4 transition-colors hover:bg-surface-2"
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: meta.accent }}
+                />
+                <span className="font-semibold">{meta.labelKo}</span>
+                <span className="text-xs text-muted">{meta.labelEn}</span>
+              </div>
+              <p className="mt-2 whitespace-pre-line text-sm text-muted line-clamp-3">
+                {meta.desc.replace("축. ", "축.\n")}
+              </p>
+            </Link>
+          ))}
+        </div>
       </section>
 
       {/* 추천 축 */}
