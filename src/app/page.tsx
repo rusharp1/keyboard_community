@@ -37,13 +37,13 @@ export default function Home() {
           기계식 키보드 커뮤니티
         </p>
         <h1 className="text-3xl font-bold leading-tight sm:text-5xl">
-          축의 이름·색상·특성을 한눈에,
+          키보드·축·키캡을 한눈에,
           <br />
-          타건음은 귀로 직접.
+          내게 맞는 키보드 찾기.
         </h1>
         <p className="mt-4 max-w-xl text-muted">
-          적축·갈축·청축·저소음까지 — 각 축의 스펙과 키감을 정리하고, 유튜브와
-          인스타그램 해시태그로 실제 타건음을 들어볼 수 있습니다.
+          완성형 키보드부터 축·키캡까지 — 배열·스위치·색감으로 모아 보고,
+          유튜브 리뷰·타건음으로 확인하세요.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
