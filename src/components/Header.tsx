@@ -1,4 +1,5 @@
 import Link from "next/link";
+import HeaderAuth from "@/components/auth/HeaderAuth";
 
 const nav = [
   { href: "/keyboards", label: "키보드 도감" },
@@ -31,12 +32,7 @@ export default function Header() {
               {item.label}
             </Link>
           ))}
-          <Link
-            href="/login"
-            className="ml-2 rounded-md bg-surface-2 px-3 py-1.5 text-foreground transition-colors hover:bg-border"
-          >
-            로그인
-          </Link>
+          <HeaderAuth />
         </nav>
       </div>
     </header>

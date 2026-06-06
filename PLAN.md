@@ -37,6 +37,11 @@
 
 **데이터 보강**: 스토어 니치 축의 빈 스펙(압력/키감/색) 채우기. 유튜브 타건음 영상 ID(`youtubeVideoIds`)는 현재 전부 비어 검색 링크 폴백 상태 → 검증된 영상 채우면 임베드.
 
-**커뮤니티(미착수)**: Supabase 연동 → 인증(이메일+구글) → 게시판/댓글/좋아요.
-- 필요한 테이블: `profiles`, `posts`, `comments`, `likes`. RLS는 읽기 공개·쓰기/수정/삭제는 본인만.
-- 계정 생성·로그인은 사용자가 직접 해야 하는 단계.
+**인증 1단계 — 이메일+비밀번호 (코드 완료, 사용자 설정 대기)**: Supabase Auth 통합. 스펙·구현은 `docs/specs/auth-email.md`, DB는 `docs/sql/profiles.sql`.
+- 핵심: `src/proxy.ts`(Next 16 — `middleware.ts` 아님), `src/lib/supabase/*`, `src/app/(auth)/actions.ts`, `/login`·`/auth/callback`·`/auth/reset`, Header 로그인상태(`HeaderAuth`).
+- 결정: 확인 메일 필수 / 가입 시 닉네임(profiles unique) / 같은 이메일=한 계정 / 비번 재설정 포함.
+- **사용자가 직접**: Supabase 프로젝트 생성 → `.env.local`(+ Vercel env)에 URL/anon key → `docs/sql/profiles.sql` 실행 → Auth에서 Confirm email ON + Redirect URLs 등록. (`.env.local.example` 참고. 단 `.gitignore`가 `.env*`를 무시하므로 example은 미추적 — 필요시 `!.env.local.example` 추가)
+
+**인증 2단계 — 네이버 연동(미착수)**: Supabase 기본 미지원 → 커스텀 OAuth로 얹음. 콜백/profiles 구조 재사용하도록 1단계에서 provider 무관하게 설계함. "Link accounts with same email" 검토.
+
+**커뮤니티 3단계(미착수)**: `posts`(+ `comments`, `likes`). RLS는 읽기 공개·쓰기/수정/삭제는 본인만(`auth.uid()=user_id`). posts RLS 패턴은 `docs/sql/profiles.sql` 하단에 주석으로 있음. 게시판 UI·CRUD는 별도 인터뷰로 스펙 확정.
