@@ -105,7 +105,9 @@ export default function Home() {
               <span className="font-semibold">{meta.labelKo}</span>
               <span className="text-xs text-muted">{meta.labelEn}</span>
             </div>
-            <p className="mt-2 text-sm text-muted line-clamp-3">{meta.desc}</p>
+            <p className="mt-2 whitespace-pre-line text-sm text-muted line-clamp-3">
+              {meta.desc.replace("축. ", "축.\n")}
+            </p>
           </Link>
         ))}
       </section>
