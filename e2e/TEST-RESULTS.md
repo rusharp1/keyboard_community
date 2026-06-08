@@ -33,14 +33,16 @@
 **요약: 17개 케이스 자동 통과. 3개(1-6, 4-1, 3-2 재발송)는 Supabase 메일 시간당 한도로 보류(코드는 정상 확인). 5-2 env-누락은 수동/코드 검증.**
 
 ## 메모 / 관찰
-- 메일 한도(`email rate limit exceeded`)는 무료 빌트인 메일의 시간당 제한 때문. `03` 스펙은 한도가 남았을 때 실행.
-- **`/signup` 라우트 추가됨**(관찰 보완): 비로그인 시 가입 탭으로 열리고(`AuthForm defaultMode="signup"`), 기로그인 시 홈으로 리다이렉트. `src/app/signup/page.tsx`, 검증은 TC-3-4b.
+- **`03`은 기본 제외(opt-in)**: 무료 빌트인 메일의 시간당 한도(`email rate limit exceeded`)가 매우 낮아 한 번에 통과 불가 → `RUN_EMAIL_SEND=1` 일 때만 실행하도록 스킵 가드. (메일을 보내는 UI 메시지 검증이며, 핵심 흐름은 02의 TC-4-2/TC-3-2-core 등으로 이미 커버.) 완전 자동화하려면 Supabase에 **커스텀 SMTP** 연결로 한도를 올려야 함.
+- **셀렉터 주의**: 네이버 버튼("네이버로 로그인")도 "로그인"을 포함한 링크라, 헤더 로그인 링크는 `getByRole("link", { name: "로그인", exact: true })`로 집는다.
+- **`/signup` 라우트**: 비로그인=가입 탭(`AuthForm defaultMode="signup"`), 기로그인=홈 리다이렉트. 검증 TC-3-4b.
 - 테스트 유저는 유니크 이메일로 생성 후 `afterAll`에서 admin으로 삭제(정리).
 
 ## 재실행
 ```bash
-npm run test:e2e                         # 전체
-npx playwright test e2e/02-auth-core.spec.ts   # 메일 없이 언제든
-npx playwright test e2e/03-auth-email-send.spec.ts  # 메일 한도 여유 있을 때
+npm run test:e2e                                    # 전체(03은 자동 스킵)
+npx playwright test e2e/02-auth-core.spec.ts        # 메일 없이 언제든
+# 메일 발송 스위트(한도 여유 있을 때만, PowerShell):
+$env:RUN_EMAIL_SEND=1; npx playwright test e2e/03-auth-email-send.spec.ts
 ```
-필요 env: `.env.local`(URL/anon), `.env.test.local`(SUPABASE_SERVICE_ROLE_KEY, 로컬 전용·gitignore).
+필요 env: `.env.local`(URL/anon + `SUPABASE_SERVICE_ROLE_KEY`). Playwright config가 `.env.local`을 로드.

@@ -12,13 +12,26 @@ test.afterAll(async () => {
   for (const email of created) await deleteUserByEmail(email).catch(() => {});
 });
 
+// Supabase 내장 메일은 시간당 발송 한도가 매우 낮아(수 통) 이 스위트를 한 번에
+// 통과시키기 어렵다. 평소엔 제외하고, 한도 여유가 있을 때만 opt-in으로 실행한다.
+//   PowerShell:  $env:RUN_EMAIL_SEND=1; npx playwright test e2e/03-auth-email-send.spec.ts
+test.beforeEach(() => {
+  test.skip(
+    !process.env.RUN_EMAIL_SEND,
+    "Supabase 내장 메일 시간당 한도 의존 — RUN_EMAIL_SEND=1 일 때만 실행",
+  );
+});
+
 test("TC-1-1 정상 회원가입 → 확인 메일 안내, 미로그인 상태", async ({ page }) => {
   const u = newEmail("signup");
   created.push(u.email);
 
   await signupViaUI(page, { email: u.email, nickname: newNickname("su") });
   await expect(page.getByText("확인 메일을 보냈습니다.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "로그인" })).toBeVisible();
+  // "네이버로 로그인" 버튼과 구분 위해 exact — 헤더 로그인 링크만.
+  await expect(
+    page.getByRole("link", { name: "로그인", exact: true }),
+  ).toBeVisible();
 });
 
 test("TC-4-1 비밀번호 재설정 메일 발송 안내", async ({ page }) => {
