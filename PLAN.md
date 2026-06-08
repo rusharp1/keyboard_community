@@ -15,7 +15,7 @@
 - **키캡 도감 `/keycaps`** — 38종(JTK 1 + AKKO 37). 제조사 식별 세트만 수록. 카드/상세에 프로파일·재질·대표 색감 표시, **제조사·프로파일·재질 드롭다운 필터**(`SearchableSelect`, 검색 가능), 상세에 공식 구매처(buyUrl) 링크.
 - **키보드 도감 `/keyboards`** — 15종(AULA 독거미 11 + Swagkeys/Shortcut 4). **모델=항목 1개**, 색상·연결은 배열(변형), 번들 축은 축 도감과 slug 크로스링크(상세에서 `/switches/[slug]` 링크). 종류 필드(기계식/자석축(HE)/멤브레인), 색상 hex 스와치, LCD·핫스왑 배지. 필터: 브랜드·배열·연결·종류·세부 축·색상계열·재질 드롭다운 + 핫스왑 토글. 가격은 "약 ~원부터" 대략가.
 - **공용 UI 패턴**: 검색 가능한 드롭다운은 `src/components/SearchableSelect.tsx` 재사용(축·키캡 공통). 카드(`SwitchCard`/`KeycapCard`)는 배지/칩을 헤더 아래 가로 줄(`flex flex-wrap`)로 두어 같은 행 카드 높이를 균일하게 유지.
-- `/community`, `/login` 은 자리표시 stub.
+- **인증 완료·배포**: 이메일+비밀번호(1단계) + 네이버 로그인(2단계). `/login`·`/signup`·`/onboarding` 동작. `/community`는 아직 stub(3단계에서 게시판).
 
 ---
 
@@ -37,11 +37,18 @@
 
 **데이터 보강**: 스토어 니치 축의 빈 스펙(압력/키감/색) 채우기. 유튜브 타건음 영상 ID(`youtubeVideoIds`)는 현재 전부 비어 검색 링크 폴백 상태 → 검증된 영상 채우면 임베드.
 
-**인증 1단계 — 이메일+비밀번호 (코드 완료, 사용자 설정 대기)**: Supabase Auth 통합. 스펙·구현은 `docs/specs/auth-email.md`, DB는 `docs/sql/profiles.sql`.
-- 핵심: `src/proxy.ts`(Next 16 — `middleware.ts` 아님), `src/lib/supabase/*`, `src/app/(auth)/actions.ts`, `/login`·`/auth/callback`·`/auth/reset`, Header 로그인상태(`HeaderAuth`).
-- 결정: 확인 메일 필수 / 가입 시 닉네임(profiles unique) / 같은 이메일=한 계정 / 비번 재설정 포함.
-- **사용자가 직접**: Supabase 프로젝트 생성 → `.env.local`(+ Vercel env)에 URL/anon key → `docs/sql/profiles.sql` 실행 → Auth에서 Confirm email ON + Redirect URLs 등록. (`.env.local.example` 참고. 단 `.gitignore`가 `.env*`를 무시하므로 example은 미추적 — 필요시 `!.env.local.example` 추가)
+**인증 1단계 — 이메일+비밀번호 (✅ 완료·배포)**: Supabase Auth 통합. 스펙은 `login_spec.md`(통합본), DB는 `docs/sql/profiles.sql`.
+- 핵심: `src/proxy.ts`(Next 16 — `middleware.ts` 아님), `src/lib/supabase/*`, `src/app/(auth)/actions.ts`, `/login`·`/signup`·`/auth/callback`·`/auth/reset`, Header 로그인상태(`HeaderAuth`).
+- 결정: 확인 메일 필수 / 가입 시 닉네임(profiles unique) / 같은 이메일=한 계정 / 비번 재설정 포함 / 로그인 상태로 `/login`·`/signup` 접근 시 홈 리다이렉트 / 중복 이메일 가입 차단.
+- env(`.env.local` + Vercel): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Supabase: `profiles.sql` 실행, Auth Confirm email ON + Redirect URLs(`/auth/callback**`).
 
-**인증 2단계 — 네이버 연동(미착수)**: Supabase 기본 미지원 → 커스텀 OAuth로 얹음. 콜백/profiles 구조 재사용하도록 1단계에서 provider 무관하게 설계함. "Link accounts with same email" 검토.
+**인증 2단계 — 네이버 (✅ 완료·배포)**: 네이버는 Supabase 기본 미지원·비표준 OIDC라 **방법 B(수동 OAuth 라우트 핸들러 + Supabase Admin)**. 기존 `/auth/callback`(magiclink token_hash) 재사용해 세션 수립.
+- 파일: `src/app/api/auth/naver/{start,callback}/route.ts`, `src/lib/auth/naver.ts`, `src/lib/supabase/admin.ts`(server-only), `/onboarding`+`OnboardingForm`, `completeOnboarding` 액션, AuthForm 네이버 버튼.
+- 결정: 이메일 필수(네이버 동의에서 미제공 시 차단) / 같은 이메일=기존 계정 연결 / 닉네임은 온보딩 입력(트리거가 nickname null이면 profiles 생성 스킵 + 온보딩 insert 정책).
+- env(서버 전용, `.env.local` + Vercel 서버): `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`. 네이버 앱: 이메일 동의 항목 필수, Callback URL(로컬+운영) 등록.
 
-**커뮤니티 3단계(미착수)**: `posts`(+ `comments`, `likes`). RLS는 읽기 공개·쓰기/수정/삭제는 본인만(`auth.uid()=user_id`). posts RLS 패턴은 `docs/sql/profiles.sql` 하단에 주석으로 있음. 게시판 UI·CRUD는 별도 인터뷰로 스펙 확정.
+**로그인 E2E (Playwright)**: `e2e/`(`01-validation`/`02-auth-core`/`03-auth-email-send`), 결과 `e2e/TEST-RESULTS.md`, 실행 `npm run test:e2e`.
+- `02`는 service_role admin으로 메일 없이 검증(`.env.test.local`은 삭제됨 — service_role은 `.env.local`에서 로드). `03`(메일발송 TC-1-6/4-1/3-2 재발송)은 **Supabase 시간당 메일 한도로 보류** → 한도 리셋 후 재실행.
+- 알려진 무해 이슈: 온보딩 폼 하이드레이션 경고는 브라우저 확장(`data-listener-added`) 탓. 정리하려면 input에 `suppressHydrationWarning`.
+
+**커뮤니티 3단계 (다음 작업, 미착수)**: `posts`(+ `comments`, `likes`). RLS는 읽기 공개·쓰기/수정/삭제는 본인만(`auth.uid()=user_id`). posts RLS 패턴은 `docs/sql/profiles.sql` 하단에 주석으로 있음. 게시판 UI·CRUD는 별도 인터뷰로 스펙 확정. (글 작성 가드는 `requireProfile` 패턴으로 profiles 없으면 `/onboarding`.)
