@@ -25,8 +25,14 @@ function FieldError({ msg }: { msg?: string }) {
   return <p className="mt-1 text-xs text-accent">{msg}</p>;
 }
 
-export default function AuthForm() {
-  const [mode, setMode] = useState<Mode>("login");
+export default function AuthForm({
+  defaultMode = "login",
+  notice,
+}: {
+  defaultMode?: Mode;
+  notice?: string;
+} = {}) {
+  const [mode, setMode] = useState<Mode>(defaultMode);
 
   const [loginState, loginAction, loginPending] = useActionState(signIn, initial);
   const [signupState, signupAction, signupPending] = useActionState(
@@ -65,6 +71,12 @@ export default function AuthForm() {
           회원가입
         </button>
       </div>
+
+      {notice && (
+        <p className="mb-4 rounded-lg border border-accent/40 bg-surface px-3 py-2 text-sm text-accent">
+          {notice}
+        </p>
+      )}
 
       {/* 로그인 */}
       {mode === "login" && (
@@ -246,6 +258,24 @@ export default function AuthForm() {
             ← 로그인으로 돌아가기
           </button>
         </form>
+      )}
+
+      {mode !== "forgot" && (
+        <div className="mt-5">
+          <div className="mb-3 flex items-center gap-3 text-xs text-muted">
+            <span className="h-px flex-1 bg-border" />
+            또는
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <a
+            href="/api/auth/naver/start"
+            className="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-medium text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: "#03C75A" }}
+          >
+            <span className="text-lg font-extrabold leading-none">N</span>
+            네이버로 로그인
+          </a>
+        </div>
       )}
 
       <p className="mt-6 text-center text-xs text-muted">

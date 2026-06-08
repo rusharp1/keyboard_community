@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
@@ -202,4 +203,48 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/");
+}
+
+// 소셜(네이버) 신규 유저의 닉네임 온보딩 — 로그인 세션으로 profiles 행 생성.
+export async function completeOnboarding(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = nicknameSchema.safeParse(formData.get("nickname"));
+  if (!parsed.success) {
+    return {
+      fieldErrors: { nickname: parsed.error.issues[0]?.message ?? "닉네임 오류" },
+    };
+  }
+  const nickname = parsed.data;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // 사전 중복 체크(최종 방어는 lower(nickname) unique index).
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("nickname", nickname)
+    .maybeSingle();
+  if (existing) {
+    return { fieldErrors: { nickname: "이미 사용 중인 닉네임입니다." } };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .insert({ id: user.id, nickname });
+  if (error) {
+    if (/duplicate|unique/i.test(error.message)) {
+      return { fieldErrors: { nickname: "이미 사용 중인 닉네임입니다." } };
+    }
+    return { error: error.message };
+  }
+
+  // 헤더(레이아웃)가 새 닉네임을 즉시 반영하도록 캐시 무효화.
+  revalidatePath("/", "layout");
+  redirect("/community");
 }

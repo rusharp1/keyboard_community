@@ -31,12 +31,19 @@ create policy "users can update own profile"
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
--- insert는 아래 트리거(SECURITY DEFINER)가 담당하므로 일반 insert 정책은 두지 않는다.
+-- insert: 본인 행만(온보딩에서 네이버 신규 유저가 직접 닉네임을 넣어 생성).
+-- 이메일/비번 가입은 트리거가 대신 생성하지만, 닉네임 없이 만들어지는
+-- 소셜(네이버) 신규 유저는 온보딩이 본인 세션으로 insert 해야 한다.
+drop policy if exists "users can insert own profile" on public.profiles;
+create policy "users can insert own profile"
+  on public.profiles for insert
+  with check (auth.uid() = id);
 
 -- 3) 신규 가입 시 프로필 자동 생성 트리거 -------------------------
 -- signUp 시 options.data.nickname → raw_user_meta_data에 담기고,
 -- 이 트리거가 그 값으로 profiles 행을 만든다.
 -- 닉네임 unique 위반이 나면 트리거가 실패 → 가입 트랜잭션이 롤백된다.
+-- 닉네임이 없으면(소셜/네이버 신규 유저) profiles 생성을 건너뛴다 → 온보딩에서 직접 insert.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -44,8 +51,10 @@ security definer
 set search_path = ''
 as $$
 begin
-  insert into public.profiles (id, nickname)
-  values (new.id, new.raw_user_meta_data ->> 'nickname');
+  if new.raw_user_meta_data ->> 'nickname' is not null then
+    insert into public.profiles (id, nickname)
+    values (new.id, new.raw_user_meta_data ->> 'nickname');
+  end if;
   return new;
 end;
 $$;
