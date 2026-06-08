@@ -25,8 +25,12 @@ function FieldError({ msg }: { msg?: string }) {
   return <p className="mt-1 text-xs text-accent">{msg}</p>;
 }
 
-export default function AuthForm() {
-  const [mode, setMode] = useState<Mode>("login");
+export default function AuthForm({
+  defaultMode = "login",
+}: {
+  defaultMode?: Mode;
+} = {}) {
+  const [mode, setMode] = useState<Mode>(defaultMode);
 
   const [loginState, loginAction, loginPending] = useActionState(signIn, initial);
   const [signupState, signupAction, signupPending] = useActionState(

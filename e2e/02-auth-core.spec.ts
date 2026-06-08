@@ -78,6 +78,22 @@ test("TC-3-4 기 로그인 사용자가 /login 접근 → 홈 리다이렉트", 
   await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
 });
 
+test("TC-3-4b /signup — 비로그인 시 가입 탭, 기로그인 시 홈 리다이렉트", async ({ page }) => {
+  // 비로그인: /signup → 회원가입 폼(가입 탭이 기본)
+  await page.goto("/signup");
+  await expect(page.getByRole("heading", { name: "회원가입" })).toBeVisible();
+  await expect(page.locator("#signup-nickname")).toBeVisible();
+
+  // 로그인 후: /signup → 홈
+  const u = newEmail("signupredir");
+  await createUser(u.email, newNickname("sr"), { confirmed: true });
+  created.push(u.email);
+  await loginViaUI(page, u.email);
+  await page.waitForURL(/\/community/, { timeout: 30_000 });
+  await page.goto("/signup");
+  await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
+});
+
 test("TC-5-3 로그아웃 → 홈 리다이렉트", async ({ page }) => {
   const u = newEmail("logout");
   await createUser(u.email, newNickname("lo"), { confirmed: true });

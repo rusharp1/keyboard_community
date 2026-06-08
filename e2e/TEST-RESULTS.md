@@ -22,7 +22,7 @@
 | 3-1 | 정상 로그인 → /community | ✅ PASS | |
 | 3-2 | 미인증 로그인 안내+재발송 | ✅/⏳ | 안내·버튼 노출 PASS, 재발송 클릭은 한도 |
 | 3-3 | 잘못된 자격 → 공통 메시지 | ✅ PASS | |
-| 3-4 | 기로그인 /login → 홈 | ✅ PASS | ※ `/signup`은 미존재 라우트(아래 메모) |
+| 3-4 | 기로그인 /login(및 /signup) → 홈 | ✅ PASS | /signup 라우트 추가됨(TC-3-4b) |
 | 4-1 | 재설정 메일 발송 안내 | ⏳ 한도 | 코드 정상, 한도 리셋 후 |
 | 4-2 | 재설정 링크→새 비번→/community | ✅ PASS | recovery token 경로 |
 | 4-3 | 새 비번 8자 미만 차단 | ✅ PASS | |
@@ -34,7 +34,7 @@
 
 ## 메모 / 관찰
 - 메일 한도(`email rate limit exceeded`)는 무료 빌트인 메일의 시간당 제한 때문. `03` 스펙은 한도가 남았을 때 실행.
-- **`/signup` 라우트 미존재**: `login_testcase.md` TC-3-4가 `/signup`도 언급하나, 현재 앱은 `/login`(가입 탭)만 있어 `/signup`은 404. 필요하면 `/signup`→`/login` 리다이렉트 라우트 추가 검토.
+- **`/signup` 라우트 추가됨**(관찰 보완): 비로그인 시 가입 탭으로 열리고(`AuthForm defaultMode="signup"`), 기로그인 시 홈으로 리다이렉트. `src/app/signup/page.tsx`, 검증은 TC-3-4b.
 - 테스트 유저는 유니크 이메일로 생성 후 `afterAll`에서 admin으로 삭제(정리).
 
 ## 재실행
