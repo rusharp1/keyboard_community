@@ -21,6 +21,7 @@ export default function OnboardingForm() {
         </label>
         <input
           id="onb-nickname"
+          suppressHydrationWarning
           name="nickname"
           type="text"
           autoComplete="nickname"

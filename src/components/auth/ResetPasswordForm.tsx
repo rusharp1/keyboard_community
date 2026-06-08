@@ -19,6 +19,7 @@ export default function ResetPasswordForm() {
         </label>
         <input
           id="new-password"
+          suppressHydrationWarning
           name="password"
           type="password"
           autoComplete="new-password"

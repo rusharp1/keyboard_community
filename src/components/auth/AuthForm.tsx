@@ -92,6 +92,7 @@ export default function AuthForm({
               type="email"
               autoComplete="email"
               required
+              suppressHydrationWarning
               className={inputClass}
             />
           </div>
@@ -105,6 +106,7 @@ export default function AuthForm({
               type="password"
               autoComplete="current-password"
               required
+              suppressHydrationWarning
               className={inputClass}
             />
           </div>
@@ -158,7 +160,8 @@ export default function AuthForm({
                   type="email"
                   autoComplete="email"
                   required
-                  className={inputClass}
+                  suppressHydrationWarning
+              className={inputClass}
                 />
                 <FieldError msg={signupState.fieldErrors?.email} />
               </div>
@@ -173,7 +176,8 @@ export default function AuthForm({
                   autoComplete="nickname"
                   required
                   placeholder="커뮤니티에 표시될 이름"
-                  className={inputClass}
+                  suppressHydrationWarning
+              className={inputClass}
                 />
                 <FieldError msg={signupState.fieldErrors?.nickname} />
               </div>
@@ -188,7 +192,8 @@ export default function AuthForm({
                   autoComplete="new-password"
                   required
                   placeholder="8자 이상"
-                  className={inputClass}
+                  suppressHydrationWarning
+              className={inputClass}
                 />
                 <FieldError msg={signupState.fieldErrors?.password} />
               </div>
@@ -233,7 +238,8 @@ export default function AuthForm({
                   type="email"
                   autoComplete="email"
                   required
-                  className={inputClass}
+                  suppressHydrationWarning
+              className={inputClass}
                 />
                 <FieldError msg={forgotState.fieldErrors?.email} />
               </div>
