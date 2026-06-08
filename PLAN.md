@@ -47,8 +47,13 @@
 - 결정: 이메일 필수(네이버 동의에서 미제공 시 차단) / 같은 이메일=기존 계정 연결 / 닉네임은 온보딩 입력(트리거가 nickname null이면 profiles 생성 스킵 + 온보딩 insert 정책).
 - env(서버 전용, `.env.local` + Vercel 서버): `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`. 네이버 앱: 이메일 동의 항목 필수, Callback URL(로컬+운영) 등록.
 
-**로그인 E2E (Playwright)**: `e2e/`(`01-validation`/`02-auth-core`/`03-auth-email-send`), 결과 `e2e/TEST-RESULTS.md`, 실행 `npm run test:e2e`.
-- `02`는 service_role admin으로 메일 없이 검증(`.env.test.local`은 삭제됨 — service_role은 `.env.local`에서 로드). `03`(메일발송 TC-1-6/4-1/3-2 재발송)은 **Supabase 시간당 메일 한도로 보류** → 한도 리셋 후 재실행.
-- 알려진 무해 이슈: 온보딩 폼 하이드레이션 경고는 브라우저 확장(`data-listener-added`) 탓. 정리하려면 input에 `suppressHydrationWarning`.
+**로그인 E2E (Playwright)**: `e2e/`(`01-validation`/`02-auth-core`/`03-auth-email-send`), 결과 `e2e/TEST-RESULTS.md`, 실행 `npm run test:e2e` → **18 passed / 4 skipped**.
+- `02`는 service_role admin으로 메일 없이 검증(service_role은 `.env.local`에서 로드, `.env.test.local`은 삭제됨). `03`(메일발송)은 Supabase 메일 한도로 **기본 제외(opt-in)** → `$env:RUN_EMAIL_SEND=1; npx playwright test e2e/03-auth-email-send.spec.ts`.
+- 셀렉터 주의: 네이버 버튼("네이버로 로그인")도 "로그인" 링크라 헤더 링크는 `getByRole("link",{name:"로그인",exact:true})`.
+- 하이드레이션 경고(브라우저 확장 `data-listener-added`)는 인증 폼 input에 `suppressHydrationWarning`로 정리됨.
+
+**미검증 케이스(나중에)**: 상세는 `e2e/TEST-RESULTS.md`의 "미검증" 섹션. 특히 ⭐ **비번 재설정 실제 메일 플로우**, ⭐ **기존 이메일 계정 = 같은 이메일 네이버 로그인 → 같은 계정 연결**(로직만, 미실행) 두 가지는 꼭 확인.
+
+**운영 전 필수 — 커스텀 SMTP**: Supabase 내장 메일은 dev 전용(시간당 한도·스팸함 직행). 실사용자 공개 전 **Resend 등 SMTP 연결**로 한도·도달률 해결(E2E 03도 자동화 가능). 도메인: eu.org(무료·승인 느림)/GitHub 학생팩 .me/저가 도메인(연 수천원) 중 택. 네이버 로그인은 메일 안 보내 무관.
 
 **커뮤니티 3단계 (다음 작업, 미착수)**: `posts`(+ `comments`, `likes`). RLS는 읽기 공개·쓰기/수정/삭제는 본인만(`auth.uid()=user_id`). posts RLS 패턴은 `docs/sql/profiles.sql` 하단에 주석으로 있음. 게시판 UI·CRUD는 별도 인터뷰로 스펙 확정. (글 작성 가드는 `requireProfile` 패턴으로 profiles 없으면 `/onboarding`.)
