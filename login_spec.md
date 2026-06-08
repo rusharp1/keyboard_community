@@ -17,6 +17,11 @@
 | 비밀번호 재설정 | 포함 |
 | 커뮤니티 권한 | 읽기 공개 / 쓰기는 로그인만 (RLS, posts는 3단계) |
 
+### Next 16 주의 (구현에 반영됨)
+- `middleware.ts` deprecated → **`src/proxy.ts`**(`proxy` 함수 + `config.matcher`). 세션 갱신만 담당.
+- `cookies()`는 **async** → 서버 클라이언트에서 `await cookies()`.
+- 인가는 proxy가 아니라 **RLS + Server Action 내부 `getUser()`** 로 강제(proxy는 쿠키 optimistic check만).
+
 ---
 
 ## 2. 기능별 동작 명세
@@ -111,5 +116,3 @@ RLS: select `using(true)`(공개) · update `using(auth.uid()=id)`(본인만) ·
 - Auth: Email provider ON, **Confirm email ON**, Redirect URLs(`/auth/callback**`) 등록
 
 배포: GitHub `main` → Vercel 자동 배포 완료(PR #1~#3).
-
-> 더 상세한 구현 노트·Next 16 주의사항은 `docs/specs/auth-email.md` 참고.
