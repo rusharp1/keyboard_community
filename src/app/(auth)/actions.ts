@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 
@@ -243,5 +244,7 @@ export async function completeOnboarding(
     return { error: error.message };
   }
 
+  // 헤더(레이아웃)가 새 닉네임을 즉시 반영하도록 캐시 무효화.
+  revalidatePath("/", "layout");
   redirect("/community");
 }
