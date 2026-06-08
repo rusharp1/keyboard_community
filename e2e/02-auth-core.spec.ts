@@ -103,7 +103,9 @@ test("TC-5-3 로그아웃 → 홈 리다이렉트", async ({ page }) => {
   await page.waitForURL(/\/community/, { timeout: 30_000 });
   await page.getByRole("button", { name: "로그아웃" }).click();
   await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
-  await expect(page.getByRole("link", { name: "로그인" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "로그인", exact: true }),
+  ).toBeVisible();
 });
 
 test("TC-4-2 재설정 링크 → /auth/reset → 새 비번 → /community", async ({ page }) => {
