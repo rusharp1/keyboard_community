@@ -1,26 +1,112 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getCategories, listPosts } from "@/lib/community/queries";
+import PostRow from "@/components/community/PostRow";
+import SearchBox from "@/components/community/SearchBox";
 
 export const metadata: Metadata = {
   title: "커뮤니티 — 키보드 커뮤니티",
 };
 
-export default function CommunityPage() {
+type SP = { category?: string; sort?: string; q?: string };
+
+// 현재 파라미터를 유지하며 일부만 바꾼 쿼리스트링을 만든다.
+function qs(base: SP, patch: Partial<SP>): string {
+  const merged = { ...base, ...patch };
+  const p = new URLSearchParams();
+  if (merged.category) p.set("category", merged.category);
+  if (merged.sort) p.set("sort", merged.sort);
+  if (merged.q) p.set("q", merged.q);
+  const s = p.toString();
+  return s ? `/community?${s}` : "/community";
+}
+
+export default async function CommunityPage({
+  searchParams,
+}: {
+  searchParams: Promise<SP>;
+}) {
+  const sp = await searchParams;
+  const categories = await getCategories();
+  const activeCat = sp.category
+    ? categories.find((c) => c.slug === sp.category)
+    : null;
+  const sort = sp.sort === "popular" ? "popular" : "latest";
+  const posts = await listPosts({
+    categoryId: activeCat?.id,
+    sort,
+    search: sp.q,
+  });
+  const catName = new Map(categories.map((c) => [c.id, c.name]));
+
+  const tabClass = (active: boolean) =>
+    `rounded-full px-3 py-1 text-sm transition-colors ${
+      active
+        ? "bg-accent text-accent-foreground"
+        : "bg-surface text-muted hover:text-foreground"
+    }`;
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16 text-center">
-      <h1 className="text-2xl font-bold">커뮤니티</h1>
-      <p className="mt-3 text-muted">
-        게시판·댓글 기능은 준비 중입니다. 회원가입과 함께 곧 열려요.
-      </p>
-      <p className="mt-1 text-sm text-muted">
-        (다음 단계: Supabase 인증 + 게시판/댓글)
-      </p>
-      <Link
-        href="/switches"
-        className="mt-6 inline-block rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-foreground transition-opacity hover:opacity-90"
-      >
-        먼저 축 도감 보기
-      </Link>
+    <div className="mx-auto max-w-3xl px-4 py-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">커뮤니티</h1>
+        <Link
+          href="/community/new"
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
+        >
+          글쓰기
+        </Link>
+      </div>
+
+      {/* 카테고리 탭 */}
+      <div className="mt-5 flex flex-wrap gap-1.5">
+        <Link href={qs(sp, { category: undefined })} className={tabClass(!activeCat)}>
+          전체
+        </Link>
+        {categories.map((c) => (
+          <Link
+            key={c.slug}
+            href={qs(sp, { category: c.slug })}
+            className={tabClass(activeCat?.slug === c.slug)}
+          >
+            {c.name}
+          </Link>
+        ))}
+      </div>
+
+      {/* 정렬 + 검색 */}
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-1 text-sm">
+          <Link
+            href={qs(sp, { sort: undefined })}
+            className={`rounded-md px-2.5 py-1 ${sort === "latest" ? "text-foreground" : "text-muted hover:text-foreground"}`}
+          >
+            최신순
+          </Link>
+          <Link
+            href={qs(sp, { sort: "popular" })}
+            className={`rounded-md px-2.5 py-1 ${sort === "popular" ? "text-foreground" : "text-muted hover:text-foreground"}`}
+          >
+            인기순
+          </Link>
+        </div>
+        <div className="sm:w-72">
+          <SearchBox />
+        </div>
+      </div>
+
+      {/* 목록 */}
+      <div className="mt-4 space-y-2">
+        {posts.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border px-4 py-12 text-center text-sm text-muted">
+            {sp.q ? "검색 결과가 없습니다." : "아직 글이 없습니다. 첫 글을 써보세요!"}
+          </p>
+        ) : (
+          posts.map((p) => (
+            <PostRow key={p.id} post={p} categoryName={catName.get(p.category_id)} />
+          ))
+        )}
+      </div>
     </div>
   );
 }
