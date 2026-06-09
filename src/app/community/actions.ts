@@ -1,10 +1,22 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
 import { requireProfile, requireUser } from "@/lib/auth/guards";
 import { BODY_MAX, COMMENT_MAX, TITLE_MAX } from "@/lib/community/limits";
+
+const MAX_IMAGES = 5;
+
+// 폼에서 넘어온 이미지 URL들(브라우저에서 Storage 업로드 후 hidden input으로 전달).
+function parseImages(formData: FormData): string[] {
+  return formData
+    .getAll("images")
+    .filter((v): v is string => typeof v === "string" && v.length > 0)
+    .slice(0, MAX_IMAGES);
+}
 
 export type FormState = {
   error?: string;
@@ -69,6 +81,7 @@ export async function createPost(
       title: title.data,
       body: body.data,
       tags: parseTags(formData.get("tags")),
+      images: parseImages(formData),
     })
     .select("id")
     .single();
@@ -104,6 +117,7 @@ export async function updatePost(
       title: title.data,
       body: body.data,
       tags: parseTags(formData.get("tags")),
+      images: parseImages(formData),
     })
     .eq("id", id);
   if (error) return { error: error.message };
@@ -197,4 +211,36 @@ export async function toggleLike(formData: FormData): Promise<void> {
     await supabase.from("post_likes").insert({ post_id: postId, user_id: user.id });
   }
   revalidatePath(`/community/${postId}`);
+}
+
+// 조회수 1회 집계(하루·뷰어 단위 중복방지). 상세 페이지에서 1회 호출.
+export async function recordView(postId: string): Promise<void> {
+  if (!postId) return;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let key = user?.id ?? "";
+  if (!key) {
+    const store = await cookies();
+    key = store.get("cv")?.value ?? "";
+    if (!key) {
+      key = crypto.randomUUID();
+      store.set("cv", key, {
+        maxAge: 60 * 60 * 24 * 365,
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+      });
+    }
+  }
+
+  // (post_id, viewer_key, day) 충돌이면 무시 → 트리거가 view_count를 안 올린다.
+  await supabase
+    .from("post_views")
+    .upsert(
+      { post_id: postId, viewer_key: key },
+      { onConflict: "post_id,viewer_key,day", ignoreDuplicates: true },
+    );
 }

@@ -27,17 +27,35 @@ export default function PostRow({
         <span>{formatDate(post.created_at)}</span>
       </div>
 
-      <h3 className="mt-1 truncate font-medium text-foreground">{post.title}</h3>
-
-      {post.tags.length > 0 && (
-        <div className="mt-1 flex flex-wrap gap-1">
-          {post.tags.map((t) => (
-            <span key={t} className="text-xs text-muted">
-              #{t}
-            </span>
-          ))}
+      <div className="mt-1 flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate font-medium text-foreground">{post.title}</h3>
+          {post.tags.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {post.tags.map((t) => (
+                <span key={t} className="text-xs text-muted">
+                  #{t}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+        {post.images.length > 0 && (
+          <div className="relative shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={post.images[0]}
+              alt=""
+              className="h-14 w-14 rounded-md border border-border object-cover"
+            />
+            {post.images.length > 1 && (
+              <span className="absolute bottom-0 right-0 rounded-tl bg-background/80 px-1 text-[10px] text-muted">
+                +{post.images.length - 1}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="mt-2 flex items-center justify-between text-xs text-muted">
         <AuthorBadge author={post.author} />

@@ -43,6 +43,7 @@ export default async function EditPostPage({
           title: post.title,
           body: post.body,
           tags: post.tags,
+          images: post.images,
         }}
       />
     </div>

@@ -22,5 +22,14 @@ await probe("posts 테이블", () => db.from("posts").select("id").limit(1));
 await probe("comments 테이블", () => db.from("comments").select("id").limit(1));
 await probe("post_likes 테이블", () => db.from("post_likes").select("post_id").limit(1));
 
+// Phase 2
+await probe("posts.images 컬럼", () => db.from("posts").select("images").limit(1));
+await probe("post_views 테이블", () => db.from("post_views").select("post_id").limit(1));
+
+const { data: bucket } = await db.storage.getBucket("post-images");
+console.log(
+  bucket ? `✅ Storage 버킷 post-images (public=${bucket.public})` : "❌ Storage 버킷 post-images 없음",
+);
+
 const { data: cats } = await db.from("categories").select("slug, name").order("position");
 console.log("\n카테고리:", cats?.map((c) => `${c.slug}(${c.name})`).join(", ") ?? "(없음)");

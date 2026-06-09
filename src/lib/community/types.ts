@@ -19,6 +19,7 @@ export type PostListItem = {
   category_id: number;
   title: string;
   tags: string[];
+  images: string[];
   view_count: number;
   like_count: number;
   comment_count: number;

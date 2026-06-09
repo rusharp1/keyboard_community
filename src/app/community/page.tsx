@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getCategories, listPosts } from "@/lib/community/queries";
+import { getBestPosts, getCategories, listPosts } from "@/lib/community/queries";
 import PostRow from "@/components/community/PostRow";
 import SearchBox from "@/components/community/SearchBox";
 
@@ -39,6 +39,10 @@ export default async function CommunityPage({
   });
   const catName = new Map(categories.map((c) => [c.id, c.name]));
 
+  // 인기글은 필터/검색이 없는 기본 화면에서만 노출.
+  const showBest = !sp.q && !activeCat;
+  const best = showBest ? await getBestPosts(5) : [];
+
   const tabClass = (active: boolean) =>
     `rounded-full px-3 py-1 text-sm transition-colors ${
       active
@@ -73,6 +77,18 @@ export default async function CommunityPage({
           </Link>
         ))}
       </div>
+
+      {/* 인기글(Best) */}
+      {best.length > 0 && (
+        <section className="mt-5">
+          <h2 className="mb-2 text-sm font-semibold text-foreground">🔥 인기글</h2>
+          <div className="space-y-2">
+            {best.map((p) => (
+              <PostRow key={p.id} post={p} categoryName={catName.get(p.category_id)} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 정렬 + 검색 */}
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import type { FormState } from "@/app/community/actions";
 import { BODY_MAX, TITLE_MAX } from "@/lib/community/limits";
+import ImageUploader from "./ImageUploader";
 
 type CategoryOpt = { id: number; name: string };
 
@@ -11,6 +12,7 @@ type Initial = {
   title?: string;
   body?: string;
   tags?: string[];
+  images?: string[];
   category_id?: number;
 };
 
@@ -103,6 +105,8 @@ export default function PostForm({
           <p className="mt-1 text-xs text-accent">{state.fieldErrors.body}</p>
         )}
       </div>
+
+      <ImageUploader initial={initial.images} />
 
       <div>
         <label className="mb-1 block text-sm text-muted" htmlFor="tags">

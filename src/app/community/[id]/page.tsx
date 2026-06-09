@@ -13,6 +13,7 @@ import AuthorBadge from "@/components/community/AuthorBadge";
 import LikeButton from "@/components/community/LikeButton";
 import CommentSection from "@/components/community/CommentSection";
 import ConfirmSubmitButton from "@/components/community/ConfirmSubmitButton";
+import ViewTracker from "@/components/community/ViewTracker";
 import { formatDate } from "@/lib/community/format";
 
 export async function generateMetadata({
@@ -105,6 +106,22 @@ export default async function PostDetailPage({
           {post.body}
         </div>
       )}
+
+      {post.images.length > 0 && (
+        <div className="mt-6 space-y-3">
+          {post.images.map((src) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={src}
+              src={src}
+              alt=""
+              className="w-full rounded-lg border border-border"
+            />
+          ))}
+        </div>
+      )}
+
+      <ViewTracker postId={post.id} />
 
       {post.tags.length > 0 && (
         <div className="mt-6 flex flex-wrap gap-1.5">

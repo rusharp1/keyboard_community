@@ -242,6 +242,69 @@ create trigger posts_touch_updated_at
   for each row execute function public.touch_updated_at(); -- profiles.sql 정의 재사용
 
 -- =============================================================
--- [Phase 3] reports + 자동숨김, [Phase 2] post_views(조회수),
--- [Phase 4] notifications / notification_prefs 는 이후 단계에서 추가.
+-- Phase 2 — 이미지 / 조회수
+-- =============================================================
+
+-- 6) 글 이미지(공개 URL 배열) ------------------------------------
+alter table public.posts
+  add column if not exists images text[] not null default '{}';
+
+-- 7) 조회수 중복방지 집계 ----------------------------------------
+-- (post_id, viewer_key, day) 단위로 하루 1회만 카운트.
+-- viewer_key = 로그인 유저 id 또는 익명 쿠키 값.
+create table if not exists public.post_views (
+  post_id     uuid not null references public.posts (id) on delete cascade,
+  viewer_key  text not null,
+  day         date not null default current_date,
+  primary key (post_id, viewer_key, day)
+);
+
+alter table public.post_views enable row level security;
+-- 집계용 insert만 허용(누구나). view_count는 posts에 denorm되므로 select 불필요.
+drop policy if exists "views insert anyone" on public.post_views;
+create policy "views insert anyone"
+  on public.post_views for insert with check (true);
+
+create or replace function public.on_view_insert()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  update public.posts set view_count = view_count + 1 where id = new.post_id;
+  return null;
+end;
+$$;
+
+drop trigger if exists post_views_after_insert on public.post_views;
+create trigger post_views_after_insert
+  after insert on public.post_views
+  for each row execute function public.on_view_insert();
+
+-- 8) Storage 버킷(post-images, 공개) + 정책 ----------------------
+insert into storage.buckets (id, name, public)
+  values ('post-images', 'post-images', true)
+  on conflict (id) do nothing;
+
+drop policy if exists "post-images public read" on storage.objects;
+create policy "post-images public read"
+  on storage.objects for select
+  using (bucket_id = 'post-images');
+
+-- 업로드는 로그인 유저가 본인 폴더(<uid>/...)에만.
+drop policy if exists "post-images auth upload" on storage.objects;
+create policy "post-images auth upload"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'post-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "post-images owner delete" on storage.objects;
+create policy "post-images owner delete"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'post-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- =============================================================
+-- [Phase 3] reports + 자동숨김, [Phase 4] notifications / prefs 는 이후 단계.
 -- =============================================================

@@ -6,8 +6,8 @@ import type { Category, Comment, Post, PostListItem } from "./types";
 // FK 컬럼(user_id) 힌트로 관계를 명시 — 안 그러면 PostgREST가
 // posts/comments ↔ profiles 관계를 모호하다고 보고 임베드를 거부한다.
 const AUTHOR = "author:profiles!user_id(nickname, activity_score, role)";
-const LIST_COLS = `id, category_id, title, tags, view_count, like_count, comment_count, pinned, created_at, ${AUTHOR}`;
-const POST_COLS = `id, user_id, category_id, title, body, tags, view_count, like_count, comment_count, pinned, is_hidden, created_at, updated_at, ${AUTHOR}`;
+const LIST_COLS = `id, category_id, title, tags, images, view_count, like_count, comment_count, pinned, created_at, ${AUTHOR}`;
+const POST_COLS = `id, user_id, category_id, title, body, tags, images, view_count, like_count, comment_count, pinned, is_hidden, created_at, updated_at, ${AUTHOR}`;
 
 export async function getCategories(): Promise<Category[]> {
   const supabase = await createClient();
@@ -78,6 +78,26 @@ export async function getComments(postId: string): Promise<Comment[]> {
     .eq("post_id", postId)
     .order("created_at", { ascending: true });
   return (data as unknown as Comment[]) ?? [];
+}
+
+// 인기글(Best) — 최근 7일 내 글 중 (좋아요*2 + 댓글) 가중점수 상위.
+// 저볼륨 기준 후보를 넉넉히 가져와 JS에서 가중 정렬(별도 RPC 불필요).
+export async function getBestPosts(limit = 5): Promise<PostListItem[]> {
+  const supabase = await createClient();
+  const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const { data } = await supabase
+    .from("posts")
+    .select(LIST_COLS)
+    .gte("created_at", since)
+    .order("like_count", { ascending: false })
+    .limit(50);
+  const items = (data as unknown as PostListItem[]) ?? [];
+  return items
+    .map((p) => ({ p, score: p.like_count * 2 + p.comment_count }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((x) => x.p);
 }
 
 // 현재 유저가 이 글을 좋아요 했는지.
