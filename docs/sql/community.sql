@@ -61,12 +61,22 @@ create table if not exists public.categories (
   position    int not null default 0
 );
 
+-- 키보드 커뮤니티에 맞춘 카테고리. 재실행 시 name/position/admin_only까지 동기화.
 insert into public.categories (slug, name, admin_only, position) values
-  ('notice', '공지',  true,  0),
-  ('free',   '자유',  false, 1),
-  ('qna',    '질문',  false, 2),
-  ('review', '후기',  false, 3)
-on conflict (slug) do nothing;
+  ('notice',   '공지',   true,  0),
+  ('free',     '자유',   false, 1),
+  ('qna',      '질문',   false, 2),
+  ('show',     '자랑',   false, 3),
+  ('keyboard', '키보드', false, 4),
+  ('switch',   '키축',   false, 5),
+  ('keycap',   '키캡',   false, 6),
+  ('build',    '커스텀', false, 7),
+  ('review',   '후기',   false, 8),
+  ('info',     '정보',   false, 9)
+on conflict (slug) do update
+  set name = excluded.name,
+      admin_only = excluded.admin_only,
+      position = excluded.position;
 
 alter table public.categories enable row level security;
 drop policy if exists "categories readable by everyone" on public.categories;
