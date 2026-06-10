@@ -17,6 +17,7 @@ export default function CommentSection({
   const tops = comments.filter((c) => !c.parent_id);
   const childrenOf = (id: string) => comments.filter((c) => c.parent_id === id);
   const canManage = (c: Comment) => isStaff || c.user_id === currentUserId;
+  const canReport = (c: Comment) => !!currentUserId && c.user_id !== currentUserId;
 
   return (
     <section className="mt-8">
@@ -47,6 +48,7 @@ export default function CommentSection({
             <CommentView
               comment={c}
               canManage={canManage(c)}
+              canReport={canReport(c)}
               allowReply={!!currentUserId}
             />
             {childrenOf(c.id).map((child) => (
@@ -55,6 +57,7 @@ export default function CommentSection({
                 comment={child}
                 isReply
                 canManage={canManage(child)}
+                canReport={canReport(child)}
               />
             ))}
           </div>

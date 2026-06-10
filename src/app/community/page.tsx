@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 import { getBestPosts, getCategories, listPosts } from "@/lib/community/queries";
 import PostRow from "@/components/community/PostRow";
 import SearchBox from "@/components/community/SearchBox";
@@ -43,6 +44,21 @@ export default async function CommunityPage({
   const showBest = !sp.q && !activeCat;
   const best = showBest ? await getBestPosts(5) : [];
 
+  // 운영진이면 "운영" 링크 노출.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let isStaff = false;
+  if (user) {
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    isStaff = prof?.role === "admin" || prof?.role === "moderator";
+  }
+
   const tabClass = (active: boolean) =>
     `rounded-full px-3 py-1 text-sm transition-colors ${
       active
@@ -54,12 +70,22 @@ export default async function CommunityPage({
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">커뮤니티</h1>
-        <Link
-          href="/community/new"
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
-        >
-          글쓰기
-        </Link>
+        <div className="flex items-center gap-2">
+          {isStaff && (
+            <Link
+              href="/community/admin"
+              className="rounded-lg border border-border px-3 py-2 text-sm text-muted hover:text-foreground"
+            >
+              운영
+            </Link>
+          )}
+          <Link
+            href="/community/new"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
+          >
+            글쓰기
+          </Link>
+        </div>
       </div>
 
       {/* 카테고리 탭 */}

@@ -5,8 +5,14 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireProfile, requireUser } from "@/lib/auth/guards";
+import {
+  requireAdmin,
+  requireProfile,
+  requireStaff,
+  requireUser,
+} from "@/lib/auth/guards";
 import { BODY_MAX, COMMENT_MAX, TITLE_MAX } from "@/lib/community/limits";
+import { REPORT_REASONS, type ReportReason } from "@/lib/community/types";
 
 const MAX_IMAGES = 5;
 
@@ -243,4 +249,91 @@ export async function recordView(postId: string): Promise<void> {
       { post_id: postId, viewer_key: key },
       { onConflict: "post_id,viewer_key,day", ignoreDuplicates: true },
     );
+}
+
+// ───────────────────────── 신고 / 모더레이션 (Phase 3) ─────────────────────────
+
+const REASON_VALUES = REPORT_REASONS.map((r) => r.value) as string[];
+
+// 글·댓글 신고. 서로 다른 신고자 5명 누적 시 DB 트리거가 자동 숨김.
+export async function reportTarget(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const { supabase, user } = await requireProfile();
+  const targetType = String(formData.get("target_type") ?? "");
+  const targetId = String(formData.get("target_id") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+  const detail = String(formData.get("detail") ?? "").trim().slice(0, 500);
+
+  if ((targetType !== "post" && targetType !== "comment") || !targetId)
+    return { error: "잘못된 요청입니다." };
+  if (!REASON_VALUES.includes(reason))
+    return { fieldErrors: { reason: "신고 사유를 선택하세요." } };
+
+  const { error } = await supabase.from("reports").insert({
+    reporter_id: user.id,
+    target_type: targetType,
+    target_id: targetId,
+    reason: reason as ReportReason,
+    detail: detail || null,
+  });
+
+  if (error) {
+    if (/duplicate key|unique/i.test(error.message))
+      return { error: "이미 신고한 항목입니다." };
+    return { error: error.message };
+  }
+  return { ok: true };
+}
+
+// 운영진: 글/댓글 숨김 ↔ 복원. 복원 시 해당 대상의 신고를 처리완료로.
+export async function moderateHide(formData: FormData): Promise<void> {
+  const { supabase } = await requireStaff();
+  const targetType = String(formData.get("target_type") ?? "");
+  const targetId = String(formData.get("target_id") ?? "");
+  const hidden = formData.get("hidden") === "true";
+  const table =
+    targetType === "post" ? "posts" : targetType === "comment" ? "comments" : null;
+  if (!table || !targetId) return;
+
+  await supabase.from(table).update({ is_hidden: hidden }).eq("id", targetId);
+  if (!hidden) {
+    await supabase
+      .from("reports")
+      .update({ status: "resolved" })
+      .eq("target_type", targetType)
+      .eq("target_id", targetId);
+  }
+  revalidatePath("/community/admin");
+}
+
+// 운영진: 대상 글/댓글 삭제 + 관련 신고 정리(reports는 글/댓글 FK가 없어 수동 삭제).
+export async function moderateDelete(formData: FormData): Promise<void> {
+  const { supabase } = await requireStaff();
+  const targetType = String(formData.get("target_type") ?? "");
+  const targetId = String(formData.get("target_id") ?? "");
+  const table =
+    targetType === "post" ? "posts" : targetType === "comment" ? "comments" : null;
+  if (!table || !targetId) return;
+
+  await supabase.from(table).delete().eq("id", targetId);
+  await supabase
+    .from("reports")
+    .delete()
+    .eq("target_type", targetType)
+    .eq("target_id", targetId);
+  revalidatePath("/community/admin");
+}
+
+// admin: 역할 변경(운영진 승격/해제). admin 지정은 UI 밖(스크립트)에서만.
+export async function setRole(formData: FormData): Promise<void> {
+  const { supabase, user } = await requireAdmin();
+  const userId = String(formData.get("user_id") ?? "");
+  const role = String(formData.get("role") ?? "");
+  if (!userId || (role !== "user" && role !== "moderator")) return;
+  if (userId === user.id) return; // 본인 역할은 UI에서 못 바꾼다.
+
+  await supabase.from("profiles").update({ role }).eq("id", userId);
+  revalidatePath("/community/admin");
 }

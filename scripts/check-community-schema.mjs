@@ -31,5 +31,10 @@ console.log(
   bucket ? `✅ Storage 버킷 post-images (public=${bucket.public})` : "❌ Storage 버킷 post-images 없음",
 );
 
+// Phase 3
+await probe("reports 테이블", () =>
+  db.from("reports").select("id, status").limit(1),
+);
+
 const { data: cats } = await db.from("categories").select("slug, name").order("position");
 console.log("\n카테고리:", cats?.map((c) => `${c.slug}(${c.name})`).join(", ") ?? "(없음)");

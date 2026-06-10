@@ -14,6 +14,7 @@ import LikeButton from "@/components/community/LikeButton";
 import CommentSection from "@/components/community/CommentSection";
 import ConfirmSubmitButton from "@/components/community/ConfirmSubmitButton";
 import ViewTracker from "@/components/community/ViewTracker";
+import ReportButton from "@/components/community/ReportButton";
 import { formatDate } from "@/lib/community/format";
 
 export async function generateMetadata({
@@ -52,6 +53,7 @@ export default async function PostDetailPage({
     liked = await hasLiked(id, user.id);
   }
   const canEdit = !!user && (user.id === post.user_id || isStaff);
+  const canReport = !!user && user.id !== post.user_id;
 
   const categories = await getCategories();
   const categoryName = categories.find((c) => c.id === post.category_id)?.name;
@@ -77,6 +79,12 @@ export default async function PostDetailPage({
       <h1 className="mt-1 break-words text-2xl font-bold text-foreground">
         {post.title}
       </h1>
+
+      {post.is_hidden && (
+        <p className="mt-3 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent">
+          신고 누적으로 숨김 처리된 글입니다. 작성자와 운영진에게만 보입니다.
+        </p>
+      )}
 
       <div className="mt-3 flex items-center justify-between">
         <AuthorBadge author={post.author} />
@@ -140,6 +148,12 @@ export default async function PostDetailPage({
         <LikeButton postId={post.id} liked={liked} count={post.like_count} />
         <span className="text-sm text-muted">👁 {post.view_count}</span>
       </div>
+
+      {canReport && (
+        <div className="mt-3 text-right">
+          <ReportButton targetType="post" targetId={post.id} />
+        </div>
+      )}
 
       <CommentSection
         postId={post.id}

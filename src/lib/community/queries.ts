@@ -1,7 +1,15 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
-import type { Category, Comment, Post, PostListItem } from "./types";
+import type {
+  AdminProfile,
+  Category,
+  Comment,
+  ModerationItem,
+  Post,
+  PostListItem,
+  ReportReason,
+} from "./types";
 
 // FK 컬럼(user_id) 힌트로 관계를 명시 — 안 그러면 PostgREST가
 // posts/comments ↔ profiles 관계를 모호하다고 보고 임베드를 거부한다.
@@ -98,6 +106,109 @@ export async function getBestPosts(limit = 5): Promise<PostListItem[]> {
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map((x) => x.p);
+}
+
+// 관리자 검토큐 — 미처리(open) 신고를 대상별로 묶고 글/댓글 미리보기를 붙인다.
+// (reports select는 RLS상 운영진만 가능 → 호출 전에 requireStaff 가드 필요.)
+export async function getModerationQueue(): Promise<ModerationItem[]> {
+  const supabase = await createClient();
+  const { data: reports } = await supabase
+    .from("reports")
+    .select("target_type, target_id, reason, created_at")
+    .eq("status", "open")
+    .order("created_at", { ascending: false });
+
+  const rows = (reports ?? []) as {
+    target_type: "post" | "comment";
+    target_id: string;
+    reason: ReportReason;
+  }[];
+  if (rows.length === 0) return [];
+
+  // 대상별 집계(신고 수 = 행 수, 사유 중복제거).
+  const groups = new Map<
+    string,
+    { type: "post" | "comment"; id: string; count: number; reasons: Set<ReportReason> }
+  >();
+  for (const r of rows) {
+    const key = `${r.target_type}:${r.target_id}`;
+    const g = groups.get(key) ?? {
+      type: r.target_type,
+      id: r.target_id,
+      count: 0,
+      reasons: new Set<ReportReason>(),
+    };
+    g.count += 1;
+    g.reasons.add(r.reason);
+    groups.set(key, g);
+  }
+
+  const postIds = [...groups.values()].filter((g) => g.type === "post").map((g) => g.id);
+  const commentIds = [...groups.values()]
+    .filter((g) => g.type === "comment")
+    .map((g) => g.id);
+
+  const [postsRes, commentsRes] = await Promise.all([
+    postIds.length
+      ? supabase.from("posts").select("id, title, is_hidden").in("id", postIds)
+      : Promise.resolve({ data: [] as { id: string; title: string; is_hidden: boolean }[] }),
+    commentIds.length
+      ? supabase
+          .from("comments")
+          .select("id, body, is_hidden, post_id")
+          .in("id", commentIds)
+      : Promise.resolve({
+          data: [] as { id: string; body: string; is_hidden: boolean; post_id: string }[],
+        }),
+  ]);
+
+  const postMap = new Map((postsRes.data ?? []).map((p) => [p.id, p]));
+  const commentMap = new Map((commentsRes.data ?? []).map((c) => [c.id, c]));
+
+  return [...groups.values()].map((g) => {
+    if (g.type === "post") {
+      const p = postMap.get(g.id);
+      return {
+        target_type: "post" as const,
+        target_id: g.id,
+        report_count: g.count,
+        reasons: [...g.reasons],
+        is_hidden: p?.is_hidden ?? false,
+        preview: p?.title ?? "(삭제된 글)",
+        post_id: g.id,
+        missing: !p,
+      };
+    }
+    const c = commentMap.get(g.id);
+    return {
+      target_type: "comment" as const,
+      target_id: g.id,
+      report_count: g.count,
+      reasons: [...g.reasons],
+      is_hidden: c?.is_hidden ?? false,
+      preview: c ? c.body.slice(0, 80) : "(삭제된 댓글)",
+      post_id: c?.post_id ?? "",
+      missing: !c,
+    };
+  });
+}
+
+// 역할 관리용 유저 목록: 현재 운영진 + 활동 상위 후보.
+export async function getStaffAndCandidates(): Promise<{
+  staff: AdminProfile[];
+  candidates: AdminProfile[];
+}> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, nickname, role, activity_score")
+    .order("activity_score", { ascending: false })
+    .limit(100);
+  const all = (data as AdminProfile[]) ?? [];
+  return {
+    staff: all.filter((p) => p.role === "admin" || p.role === "moderator"),
+    candidates: all.filter((p) => p.role === "user").slice(0, 30),
+  };
 }
 
 // 현재 유저가 이 글을 좋아요 했는지.

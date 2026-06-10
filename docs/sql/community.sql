@@ -306,5 +306,76 @@ create policy "post-images owner delete"
   );
 
 -- =============================================================
--- [Phase 3] reports + 자동숨김, [Phase 4] notifications / prefs 는 이후 단계.
+-- Phase 3 — 신고 / 자동숨김 / 모더레이션
+-- =============================================================
+
+-- 9) 신고 --------------------------------------------------------
+-- 글·댓글 공통(target_id는 둘 다 uuid). 한 사람이 같은 대상 1회만(unique).
+create table if not exists public.reports (
+  id           uuid primary key default gen_random_uuid(),
+  reporter_id  uuid not null references public.profiles (id) on delete cascade,
+  target_type  text not null check (target_type in ('post', 'comment')),
+  target_id    uuid not null,
+  reason       text not null
+    check (reason in ('spam', 'abuse', 'offtopic', 'sexual', 'etc')),
+  detail       text,
+  status       text not null default 'open' check (status in ('open', 'resolved')),
+  created_at   timestamptz not null default now(),
+  unique (reporter_id, target_type, target_id)
+);
+
+create index if not exists reports_target_idx
+  on public.reports (target_type, target_id);
+create index if not exists reports_status_idx
+  on public.reports (status, created_at desc);
+
+alter table public.reports enable row level security;
+
+-- 등록: 로그인 본인만(중복은 unique 제약으로 차단).
+drop policy if exists "reports insert own" on public.reports;
+create policy "reports insert own"
+  on public.reports for insert with check (auth.uid() = reporter_id);
+
+-- 열람/처리: 운영진만.
+drop policy if exists "reports staff read" on public.reports;
+create policy "reports staff read"
+  on public.reports for select using (public.is_staff());
+
+drop policy if exists "reports staff update" on public.reports;
+create policy "reports staff update"
+  on public.reports for update
+  using (public.is_staff()) with check (public.is_staff());
+
+drop policy if exists "reports staff delete" on public.reports;
+create policy "reports staff delete"
+  on public.reports for delete using (public.is_staff());
+
+-- 자동숨김: 서로 다른 신고자 5명 이상이면 대상 글/댓글 is_hidden=true.
+create or replace function public.on_report_insert()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  cnt int;
+begin
+  select count(distinct reporter_id) into cnt
+  from public.reports
+  where target_type = new.target_type and target_id = new.target_id;
+
+  if cnt >= 5 then
+    if new.target_type = 'post' then
+      update public.posts set is_hidden = true where id = new.target_id;
+    else
+      update public.comments set is_hidden = true where id = new.target_id;
+    end if;
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists reports_after_insert on public.reports;
+create trigger reports_after_insert
+  after insert on public.reports
+  for each row execute function public.on_report_insert();
+
+-- =============================================================
+-- [Phase 4] notifications / notification_prefs 는 이후 단계.
 -- =============================================================

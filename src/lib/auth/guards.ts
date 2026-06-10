@@ -32,3 +32,18 @@ export async function requireProfile() {
   if (!profile) redirect("/onboarding");
   return { supabase, user, profile: profile as CurrentProfile };
 }
+
+// 운영진(admin/moderator) 전용. 권한 없으면 /community 로.
+export async function requireStaff() {
+  const ctx = await requireProfile();
+  if (ctx.profile.role !== "admin" && ctx.profile.role !== "moderator")
+    redirect("/community");
+  return ctx;
+}
+
+// admin 전용(역할 변경 등). 권한 없으면 /community 로.
+export async function requireAdmin() {
+  const ctx = await requireProfile();
+  if (ctx.profile.role !== "admin") redirect("/community");
+  return ctx;
+}

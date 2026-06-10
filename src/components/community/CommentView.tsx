@@ -2,6 +2,7 @@ import AuthorBadge from "./AuthorBadge";
 import ReplyToggle from "./ReplyToggle";
 import EditableCommentBody from "./EditableCommentBody";
 import ConfirmSubmitButton from "./ConfirmSubmitButton";
+import ReportButton from "./ReportButton";
 import { formatDate } from "@/lib/community/format";
 import { deleteComment } from "@/app/community/actions";
 import type { Comment } from "@/lib/community/types";
@@ -10,11 +11,13 @@ export default function CommentView({
   comment,
   isReply = false,
   canManage,
+  canReport = false,
   allowReply = false,
 }: {
   comment: Comment;
   isReply?: boolean;
   canManage: boolean;
+  canReport?: boolean;
   allowReply?: boolean;
 }) {
   return (
@@ -48,6 +51,12 @@ export default function CommentView({
       />
 
       {allowReply && <ReplyToggle postId={comment.post_id} parentId={comment.id} />}
+
+      {canReport && !comment.is_hidden && (
+        <div className="mt-1 text-right">
+          <ReportButton targetType="comment" targetId={comment.id} />
+        </div>
+      )}
     </div>
   );
 }

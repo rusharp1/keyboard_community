@@ -66,3 +66,38 @@ export const ROLE_LABEL: Record<Author["role"], string | null> = {
   moderator: "운영진",
   user: null,
 };
+
+// 신고 사유(글·댓글 공통). value는 DB check 제약과 일치해야 함.
+export const REPORT_REASONS = [
+  { value: "spam", label: "스팸/광고" },
+  { value: "abuse", label: "욕설/비방" },
+  { value: "offtopic", label: "주제 이탈" },
+  { value: "sexual", label: "음란/불법" },
+  { value: "etc", label: "기타" },
+] as const;
+
+export type ReportReason = (typeof REPORT_REASONS)[number]["value"];
+export const REASON_LABEL: Record<ReportReason, string> = Object.fromEntries(
+  REPORT_REASONS.map((r) => [r.value, r.label]),
+) as Record<ReportReason, string>;
+
+// 자동숨김 임계값(서로 다른 신고자 수). DB 트리거와 일치.
+export const REPORT_HIDE_THRESHOLD = 5;
+
+export type ModerationItem = {
+  target_type: "post" | "comment";
+  target_id: string;
+  report_count: number;
+  reasons: ReportReason[];
+  is_hidden: boolean;
+  preview: string; // 글 제목 또는 댓글 본문 일부
+  post_id: string; // 링크용(글이면 자기 자신, 댓글이면 소속 글)
+  missing: boolean; // 대상이 이미 삭제됨
+};
+
+export type AdminProfile = {
+  id: string;
+  nickname: string;
+  role: Author["role"];
+  activity_score: number;
+};

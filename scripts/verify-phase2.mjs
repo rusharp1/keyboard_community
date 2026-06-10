@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 // Phase 2 런타임 검증(트리거/임베드/인기글). 테스트용 글을 만들었다가 끝나면 삭제.
 // 실행: node scripts/verify-phase2.mjs
 import dotenv from "dotenv";
