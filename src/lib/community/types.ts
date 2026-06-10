@@ -101,3 +101,55 @@ export type AdminProfile = {
   role: Author["role"];
   activity_score: number;
 };
+
+// ── 알림(Phase 4) ──
+export type NotificationType =
+  | "comment"
+  | "reply"
+  | "like"
+  | "notice"
+  | "locked"; // 신고 누적 자동숨김 통보(시스템, 설정 비대상)
+
+export type NotificationItem = {
+  id: string;
+  type: NotificationType;
+  actor_nickname: string | null;
+  post_id: string | null;
+  comment_id: string | null;
+  post_title: string | null;
+  is_read: boolean;
+  created_at: string;
+};
+
+// 이벤트×채널 토글. 컬럼명은 DB notification_prefs와 1:1 일치.
+export type NotificationPrefs = {
+  comment_bell: boolean;
+  comment_email: boolean;
+  reply_bell: boolean;
+  reply_email: boolean;
+  like_bell: boolean;
+  like_email: boolean;
+  notice_bell: boolean;
+  notice_email: boolean;
+};
+
+// DB 기본값과 일치(행이 없을 때 사용). 좋아요 알림만 기본 OFF.
+export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
+  comment_bell: true,
+  comment_email: false,
+  reply_bell: true,
+  reply_email: false,
+  like_bell: false,
+  like_email: false,
+  notice_bell: true,
+  notice_email: false,
+};
+
+// 설정 매트릭스 행(이벤트). key는 DB type 및 prefs 컬럼 접두사와 일치.
+export const NOTIFICATION_EVENTS = [
+  { key: "comment", label: "내 글에 달린 댓글" },
+  { key: "reply", label: "내 댓글에 달린 답글" },
+  { key: "like", label: "내 글이 받은 좋아요" },
+  { key: "notice", label: "새 공지 등록" },
+] as const;
+export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[number]["key"];

@@ -36,5 +36,13 @@ await probe("reports 테이블", () =>
   db.from("reports").select("id, status").limit(1),
 );
 
+// Phase 4
+await probe("notifications 테이블", () =>
+  db.from("notifications").select("id, type, is_read").limit(1),
+);
+await probe("notification_prefs 테이블", () =>
+  db.from("notification_prefs").select("user_id, comment_bell").limit(1),
+);
+
 const { data: cats } = await db.from("categories").select("slug, name").order("position");
 console.log("\n카테고리:", cats?.map((c) => `${c.slug}(${c.name})`).join(", ") ?? "(없음)");

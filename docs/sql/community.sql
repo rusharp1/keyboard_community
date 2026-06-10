@@ -197,13 +197,26 @@ returns void language sql security definer set search_path = '' as $$
   where id = uid;
 $$;
 
--- 댓글 수 + 작성자 활동점수
+-- 댓글 수 + 작성자 활동점수 + 알림(글 작성자=댓글, 상위 댓글 작성자=대댓글)
+-- public.notify는 Phase 4 섹션에서 정의(plpgsql 본문은 호출 시점에 해석되어 forward ref 안전).
 create or replace function public.on_comment_change()
 returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  post_author uuid;
+  parent_author uuid;
 begin
   if tg_op = 'INSERT' then
-    update public.posts set comment_count = comment_count + 1 where id = new.post_id;
+    update public.posts set comment_count = comment_count + 1 where id = new.post_id
+      returning user_id into post_author;
     perform public.bump_score(new.user_id, 1);
+    if new.parent_id is not null then
+      -- 대댓글: 상위 댓글 작성자에게만 'reply'.
+      select user_id into parent_author from public.comments where id = new.parent_id;
+      perform public.notify(parent_author, 'reply', new.user_id, new.post_id, new.id);
+    else
+      -- 최상위 댓글: 글 작성자에게 'comment'.
+      perform public.notify(post_author, 'comment', new.user_id, new.post_id, new.id);
+    end if;
   elsif tg_op = 'DELETE' then
     update public.posts set comment_count = greatest(0, comment_count - 1) where id = old.post_id;
     perform public.bump_score(old.user_id, -1);
@@ -227,6 +240,7 @@ begin
     update public.posts set like_count = like_count + 1 where id = new.post_id
       returning user_id into author;
     perform public.bump_score(author, 2);
+    perform public.notify(author, 'like', new.user_id, new.post_id, null);
   elsif tg_op = 'DELETE' then
     update public.posts set like_count = greatest(0, like_count - 1) where id = old.post_id
       returning user_id into author;
@@ -241,12 +255,21 @@ create trigger likes_after_change
   after insert or delete on public.post_likes
   for each row execute function public.on_like_change();
 
--- 글 작성자 활동점수(글 +3) + updated_at
+-- 글 작성자 활동점수(글 +3) + 공지면 전체 알림 fan-out
 create or replace function public.on_post_change()
 returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  is_notice boolean;
 begin
   if tg_op = 'INSERT' then
     perform public.bump_score(new.user_id, 3);
+    -- 공지(admin_only 카테고리) 글이면 작성자 제외 전체에게 'notice'(소규모 fan-out).
+    select admin_only into is_notice from public.categories where id = new.category_id;
+    if is_notice then
+      perform public.notify(p.id, 'notice', new.user_id, new.id, null)
+      from public.profiles p
+      where p.id <> new.user_id;
+    end if;
   elsif tg_op = 'DELETE' then
     perform public.bump_score(old.user_id, -3);
   end if;
@@ -376,10 +399,15 @@ create policy "reports staff delete"
 -- 자동숨김: 서로 다른 신고자 5명 이상이면 대상 글/댓글 is_hidden=true.
 -- open 신고만 카운트한다. 운영자가 복원하면 신고가 resolved 처리되어 카운트가
 -- 0으로 리셋되고(=사면), 다시 숨기려면 새 신고 5명이 필요하다.
+-- 숨김으로 "처음 전환되는 순간"에만 작성자에게 'locked' 인앱 알림(시스템 통보 →
+-- prefs/매트릭스 비대상, 항상 발송). where is_hidden=false + RETURNING으로 전환 감지해
+-- 6번째 이후 신고에는 중복 알림이 가지 않도록 한다. (public.notifications는 아래에서 정의)
 create or replace function public.on_report_insert()
 returns trigger language plpgsql security definer set search_path = '' as $$
 declare
   cnt int;
+  author uuid;
+  c_post uuid;
 begin
   select count(distinct reporter_id) into cnt
   from public.reports
@@ -388,9 +416,21 @@ begin
 
   if cnt >= 5 then
     if new.target_type = 'post' then
-      update public.posts set is_hidden = true where id = new.target_id;
+      update public.posts set is_hidden = true
+        where id = new.target_id and is_hidden = false
+        returning user_id into author;
+      if author is not null then
+        insert into public.notifications (user_id, type, post_id)
+        values (author, 'locked', new.target_id);
+      end if;
     else
-      update public.comments set is_hidden = true where id = new.target_id;
+      update public.comments set is_hidden = true
+        where id = new.target_id and is_hidden = false
+        returning user_id, post_id into author, c_post;
+      if author is not null then
+        insert into public.notifications (user_id, type, post_id, comment_id)
+        values (author, 'locked', c_post, new.target_id);
+      end if;
     end if;
   end if;
   return null;
@@ -403,5 +443,102 @@ create trigger reports_after_insert
   for each row execute function public.on_report_insert();
 
 -- =============================================================
--- [Phase 4] notifications / notification_prefs 는 이후 단계.
+-- Phase 4 — 인앱 알림 / 알림 설정
 -- =============================================================
+
+-- 9) 알림 ---------------------------------------------------------
+-- 수신자(user_id) 기준. 트리거(security definer)만 insert. 본인만 읽고 갱신.
+create table if not exists public.notifications (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references public.profiles (id) on delete cascade,
+  type        text not null check (type in ('comment', 'reply', 'like', 'notice', 'locked')),
+  actor_id    uuid references public.profiles (id) on delete set null,
+  post_id     uuid references public.posts (id) on delete cascade,
+  comment_id  uuid references public.comments (id) on delete cascade,
+  is_read     boolean not null default false,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists notifications_user_idx
+  on public.notifications (user_id, is_read, created_at desc);
+
+alter table public.notifications enable row level security;
+
+drop policy if exists "notifications select own" on public.notifications;
+create policy "notifications select own"
+  on public.notifications for select using (auth.uid() = user_id);
+
+drop policy if exists "notifications update own" on public.notifications;
+create policy "notifications update own"
+  on public.notifications for update
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "notifications delete own" on public.notifications;
+create policy "notifications delete own"
+  on public.notifications for delete using (auth.uid() = user_id);
+-- insert 정책 없음: notify() 트리거만 행을 만든다.
+
+-- 10) 알림 설정(이벤트×채널 토글) --------------------------------
+-- bell=인앱, email=이메일(저장만, 실제 발송은 SMTP 연결 후). 행이 없으면 기본값 사용.
+create table if not exists public.notification_prefs (
+  user_id        uuid primary key references public.profiles (id) on delete cascade,
+  comment_bell   boolean not null default true,
+  comment_email  boolean not null default false,
+  reply_bell     boolean not null default true,
+  reply_email    boolean not null default false,
+  like_bell      boolean not null default false, -- 좋아요 알림은 기본 OFF
+  like_email     boolean not null default false,
+  notice_bell    boolean not null default true,
+  notice_email   boolean not null default false,
+  updated_at     timestamptz not null default now()
+);
+
+alter table public.notification_prefs enable row level security;
+
+drop policy if exists "prefs select own" on public.notification_prefs;
+create policy "prefs select own"
+  on public.notification_prefs for select using (auth.uid() = user_id);
+
+drop policy if exists "prefs insert own" on public.notification_prefs;
+create policy "prefs insert own"
+  on public.notification_prefs for insert with check (auth.uid() = user_id);
+
+drop policy if exists "prefs update own" on public.notification_prefs;
+create policy "prefs update own"
+  on public.notification_prefs for update
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- 11) 알림 생성 헬퍼 ----------------------------------------------
+-- 수신자=actor(본인 행위)거나 수신자 null이면 skip. 해당 이벤트의 bell 토글이
+-- 켜져 있으면(행 없으면 기본값) notifications에 insert. email은 저장만, 여기선 미발송.
+create or replace function public.notify(
+  p_recipient uuid,
+  p_type      text,
+  p_actor     uuid,
+  p_post      uuid,
+  p_comment   uuid
+) returns void language plpgsql security definer set search_path = '' as $$
+declare
+  allowed boolean;
+begin
+  if p_recipient is null or p_recipient = p_actor then
+    return;
+  end if;
+
+  select case p_type
+    when 'comment' then coalesce(np.comment_bell, true)
+    when 'reply'   then coalesce(np.reply_bell, true)
+    when 'like'    then coalesce(np.like_bell, false)
+    when 'notice'  then coalesce(np.notice_bell, true)
+    else false
+  end
+  into allowed
+  from (select p_recipient as uid) r
+  left join public.notification_prefs np on np.user_id = r.uid;
+
+  if allowed then
+    insert into public.notifications (user_id, type, actor_id, post_id, comment_id)
+    values (p_recipient, p_type, p_actor, p_post, p_comment);
+  end if;
+end;
+$$;

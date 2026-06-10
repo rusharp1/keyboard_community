@@ -337,3 +337,54 @@ export async function setRole(formData: FormData): Promise<void> {
   await supabase.from("profiles").update({ role }).eq("id", userId);
   revalidatePath("/community/admin");
 }
+
+// ───────────────────────── 알림 (Phase 4) ─────────────────────────
+
+// 종 드롭다운의 알림 클릭 → 읽음 처리 후 대상 글로 이동.
+export async function markNotificationRead(formData: FormData): Promise<void> {
+  const { supabase, user } = await requireProfile();
+  const id = String(formData.get("id") ?? "");
+  const postId = String(formData.get("post_id") ?? "");
+  if (id)
+    await supabase
+      .from("notifications")
+      .update({ is_read: true })
+      .eq("id", id)
+      .eq("user_id", user.id);
+  redirect(postId ? `/community/${postId}` : "/community");
+}
+
+// 본인 미읽음 알림 전체 읽음 처리.
+export async function markAllNotificationsRead(): Promise<void> {
+  const { supabase, user } = await requireProfile();
+  await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("user_id", user.id)
+    .eq("is_read", false);
+  revalidatePath("/community");
+}
+
+// 알림 설정(이벤트×채널 매트릭스) 저장. 체크 안 된 체크박스는 폼에 안 실리므로 off로 간주.
+const PREF_EVENTS = ["comment", "reply", "like", "notice"] as const;
+const PREF_CHANNELS = ["bell", "email"] as const;
+
+export async function updateNotificationPrefs(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const { supabase, user } = await requireProfile();
+  const row: Record<string, boolean> = {};
+  for (const ev of PREF_EVENTS) {
+    for (const ch of PREF_CHANNELS) {
+      const name = `${ev}_${ch}`;
+      row[name] = formData.get(name) === "on";
+    }
+  }
+  const { error } = await supabase
+    .from("notification_prefs")
+    .upsert({ user_id: user.id, ...row, updated_at: new Date().toISOString() });
+  if (error) return { error: error.message };
+  revalidatePath("/community/settings");
+  return { ok: true };
+}

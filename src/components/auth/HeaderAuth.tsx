@@ -2,6 +2,11 @@ import Link from "next/link";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/(auth)/actions";
+import BellMenu from "@/components/community/BellMenu";
+import {
+  getNotifications,
+  getUnreadCount,
+} from "@/lib/community/notifications";
 
 const loginLinkClass =
   "ml-2 rounded-md bg-surface-2 px-3 py-1.5 text-foreground transition-colors hover:bg-border";
@@ -32,9 +37,22 @@ export default async function HeaderAuth() {
     .maybeSingle();
   const nickname = profile?.nickname ?? user.email?.split("@")[0] ?? "사용자";
 
+  // 프로필이 있는 정식 유저만 알림 종을 노출(온보딩 전 소셜 신규 유저 제외).
+  const [unreadCount, notifications] = profile
+    ? await Promise.all([getUnreadCount(user.id), getNotifications(user.id)])
+    : [0, []];
+
   return (
-    <div className="ml-2 flex items-center gap-1.5">
-      <span className="px-2 text-sm font-medium text-foreground">{nickname}</span>
+    <div className="ml-2 flex items-center gap-1">
+      {profile && (
+        <BellMenu notifications={notifications} unreadCount={unreadCount} />
+      )}
+      <Link
+        href="/community/settings"
+        className="px-2 text-sm font-medium text-foreground hover:underline"
+      >
+        {nickname}
+      </Link>
       <form action={signOut}>
         <button
           type="submit"
