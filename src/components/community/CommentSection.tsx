@@ -8,11 +8,13 @@ export default function CommentSection({
   comments,
   currentUserId,
   isStaff,
+  likedCommentIds,
 }: {
   postId: string;
   comments: Comment[];
   currentUserId: string | null;
   isStaff: boolean;
+  likedCommentIds: Set<string>;
 }) {
   const tops = comments.filter((c) => !c.parent_id);
   const childrenOf = (id: string) => comments.filter((c) => c.parent_id === id);
@@ -50,6 +52,7 @@ export default function CommentSection({
               canManage={canManage(c)}
               canReport={canReport(c)}
               allowReply={!!currentUserId}
+              liked={likedCommentIds.has(c.id)}
             />
             {childrenOf(c.id).map((child) => (
               <CommentView
@@ -58,6 +61,7 @@ export default function CommentSection({
                 isReply
                 canManage={canManage(child)}
                 canReport={canReport(child)}
+                liked={likedCommentIds.has(child.id)}
               />
             ))}
           </div>

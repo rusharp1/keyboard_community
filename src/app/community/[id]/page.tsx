@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getCategories,
   getComments,
+  getLikedCommentIds,
   getPost,
   hasLiked,
 } from "@/lib/community/queries";
@@ -79,6 +80,9 @@ export default async function PostDetailPage({
   const categories = await getCategories();
   const categoryName = categories.find((c) => c.id === post.category_id)?.name;
   const comments = await getComments(id);
+  const likedCommentIds = user
+    ? await getLikedCommentIds(id, user.id)
+    : new Set<string>();
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-8">
@@ -181,6 +185,7 @@ export default async function PostDetailPage({
         comments={comments}
         currentUserId={user?.id ?? null}
         isStaff={isStaff}
+        likedCommentIds={likedCommentIds}
       />
     </article>
   );

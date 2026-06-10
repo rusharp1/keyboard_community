@@ -552,3 +552,60 @@ begin
   end if;
 end;
 $$;
+
+-- =============================================================
+-- Phase 5 — 댓글 좋아요
+-- =============================================================
+
+-- 12) 댓글 좋아요 -------------------------------------------------
+-- 글 좋아요(post_likes)와 동일 패턴: denorm 카운터 + 활동점수 + 알림.
+alter table public.comments
+  add column if not exists like_count int not null default 0;
+
+create table if not exists public.comment_likes (
+  comment_id  uuid not null references public.comments (id) on delete cascade,
+  user_id     uuid not null references public.profiles (id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  primary key (comment_id, user_id)
+);
+
+alter table public.comment_likes enable row level security;
+
+drop policy if exists "comment likes readable by everyone" on public.comment_likes;
+create policy "comment likes readable by everyone"
+  on public.comment_likes for select using (true);
+
+drop policy if exists "comment likes insert own" on public.comment_likes;
+create policy "comment likes insert own"
+  on public.comment_likes for insert with check (auth.uid() = user_id);
+
+drop policy if exists "comment likes delete own" on public.comment_likes;
+create policy "comment likes delete own"
+  on public.comment_likes for delete using (auth.uid() = user_id);
+
+-- 좋아요 수 + 댓글 작성자(받은 좋아요) 활동점수 + 'like' 알림(like_bell 존중).
+-- comment_id가 채워진 'like' 알림은 글 좋아요와 구분(앱 포맷터가 "댓글"로 표시).
+create or replace function public.on_comment_like_change()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  author uuid;
+  c_post uuid;
+begin
+  if tg_op = 'INSERT' then
+    update public.comments set like_count = like_count + 1 where id = new.comment_id
+      returning user_id, post_id into author, c_post;
+    perform public.bump_score(author, 2);
+    perform public.notify(author, 'like', new.user_id, c_post, new.comment_id);
+  elsif tg_op = 'DELETE' then
+    update public.comments set like_count = greatest(0, like_count - 1) where id = old.comment_id
+      returning user_id into author;
+    perform public.bump_score(author, -2);
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists comment_likes_after_change on public.comment_likes;
+create trigger comment_likes_after_change
+  after insert or delete on public.comment_likes
+  for each row execute function public.on_comment_like_change();

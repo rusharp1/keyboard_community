@@ -84,10 +84,34 @@ export async function getComments(postId: string): Promise<Comment[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("comments")
-    .select(`id, post_id, user_id, parent_id, body, is_hidden, created_at, ${AUTHOR}`)
+    .select(
+      `id, post_id, user_id, parent_id, body, is_hidden, like_count, created_at, ${AUTHOR}`,
+    )
     .eq("post_id", postId)
     .order("created_at", { ascending: true });
   return (data as unknown as Comment[]) ?? [];
+}
+
+// 현재 유저가 이 글의 댓글 중 좋아요한 comment_id 집합.
+export async function getLikedCommentIds(
+  postId: string,
+  userId: string,
+): Promise<Set<string>> {
+  const supabase = await createClient();
+  // comment_likes엔 post_id가 없으므로 이 글의 댓글 id로 한정해 조회.
+  const { data: ids } = await supabase
+    .from("comments")
+    .select("id")
+    .eq("post_id", postId);
+  const commentIds = (ids ?? []).map((c) => c.id as string);
+  if (commentIds.length === 0) return new Set();
+
+  const { data } = await supabase
+    .from("comment_likes")
+    .select("comment_id")
+    .eq("user_id", userId)
+    .in("comment_id", commentIds);
+  return new Set((data ?? []).map((r) => r.comment_id as string));
 }
 
 // 인기글(Best) — 최근 7일 내 글 중 (좋아요*2 + 댓글) 가중점수 상위.

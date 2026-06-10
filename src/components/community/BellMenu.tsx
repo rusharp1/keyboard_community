@@ -89,7 +89,7 @@ export default function BellMenu({
                           />
                           <span className="min-w-0">
                             <span className="block text-sm text-foreground">
-                              {notificationText(n.type, n.actor_nickname)}
+                              {notificationText(n.type, n.actor_nickname, !!n.comment_id)}
                             </span>
                             {n.post_title && (
                               <span className="mt-0.5 block truncate text-xs text-muted">

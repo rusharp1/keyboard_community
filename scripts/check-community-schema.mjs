@@ -44,5 +44,13 @@ await probe("notification_prefs 테이블", () =>
   db.from("notification_prefs").select("user_id, comment_bell").limit(1),
 );
 
+// Phase 5
+await probe("comments.like_count 컬럼", () =>
+  db.from("comments").select("like_count").limit(1),
+);
+await probe("comment_likes 테이블", () =>
+  db.from("comment_likes").select("comment_id").limit(1),
+);
+
 const { data: cats } = await db.from("categories").select("slug, name").order("position");
 console.log("\n카테고리:", cats?.map((c) => `${c.slug}(${c.name})`).join(", ") ?? "(없음)");

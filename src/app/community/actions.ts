@@ -219,6 +219,33 @@ export async function toggleLike(formData: FormData): Promise<void> {
   revalidatePath(`/community/${postId}`);
 }
 
+export async function toggleCommentLike(formData: FormData): Promise<void> {
+  const { supabase, user } = await requireProfile();
+  const commentId = String(formData.get("comment_id") ?? "");
+  const postId = String(formData.get("post_id") ?? "");
+  if (!commentId) return;
+
+  const { data: existing } = await supabase
+    .from("comment_likes")
+    .select("comment_id")
+    .eq("comment_id", commentId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("comment_likes")
+      .delete()
+      .eq("comment_id", commentId)
+      .eq("user_id", user.id);
+  } else {
+    await supabase
+      .from("comment_likes")
+      .insert({ comment_id: commentId, user_id: user.id });
+  }
+  if (postId) revalidatePath(`/community/${postId}`);
+}
+
 // 조회수 1회 집계(하루·뷰어 단위 중복방지). 상세 페이지에서 1회 호출.
 export async function recordView(postId: string): Promise<void> {
   if (!postId) return;

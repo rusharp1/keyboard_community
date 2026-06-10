@@ -3,6 +3,7 @@ import ReplyToggle from "./ReplyToggle";
 import EditableCommentBody from "./EditableCommentBody";
 import ConfirmSubmitButton from "./ConfirmSubmitButton";
 import ReportButton from "./ReportButton";
+import CommentLikeButton from "./CommentLikeButton";
 import { formatDate } from "@/lib/community/format";
 import { deleteComment } from "@/app/community/actions";
 import type { Comment } from "@/lib/community/types";
@@ -13,12 +14,14 @@ export default function CommentView({
   canManage,
   canReport = false,
   allowReply = false,
+  liked = false,
 }: {
   comment: Comment;
   isReply?: boolean;
   canManage: boolean;
   canReport?: boolean;
   allowReply?: boolean;
+  liked?: boolean;
 }) {
   return (
     <div className={isReply ? "ml-6 border-l border-border pl-4" : ""}>
@@ -49,6 +52,17 @@ export default function CommentView({
         isHidden={comment.is_hidden}
         canManage={canManage}
       />
+
+      {!comment.is_hidden && (
+        <div className="mt-1">
+          <CommentLikeButton
+            commentId={comment.id}
+            postId={comment.post_id}
+            liked={liked}
+            count={comment.like_count}
+          />
+        </div>
+      )}
 
       {allowReply && <ReplyToggle postId={comment.post_id} parentId={comment.id} />}
 

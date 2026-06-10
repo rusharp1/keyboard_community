@@ -42,6 +42,7 @@ export type Comment = {
   parent_id: string | null;
   body: string;
   is_hidden: boolean;
+  like_count: number;
   created_at: string;
   author: Author | null;
 };

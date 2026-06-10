@@ -21,6 +21,7 @@ export function formatDate(iso: string): string {
 export function notificationText(
   type: NotificationType,
   actorNickname: string | null,
+  isComment = false, // 'like'가 댓글 좋아요면 true(글/댓글 문구 구분)
 ): string {
   const who = actorNickname ?? "누군가";
   switch (type) {
@@ -29,7 +30,9 @@ export function notificationText(
     case "reply":
       return `${who}님이 회원님의 댓글에 답글을 남겼어요`;
     case "like":
-      return `${who}님이 회원님의 글을 좋아합니다`;
+      return isComment
+        ? `${who}님이 회원님의 댓글을 좋아합니다`
+        : `${who}님이 회원님의 글을 좋아합니다`;
     case "notice":
       return "새 공지가 등록되었어요";
     case "locked":
