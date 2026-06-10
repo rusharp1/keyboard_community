@@ -29,6 +29,29 @@ as $$
   );
 $$;
 
+-- admin 여부(역할 변경 등 운영 최상위 권한). security definer로 RLS 재귀 회피.
+create or replace function public.is_admin(uid uuid default auth.uid())
+returns boolean
+language sql
+security definer
+set search_path = ''
+stable
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = uid and role = 'admin'
+  );
+$$;
+
+-- profiles update: 본인 행은 profiles.sql 정책이 허용. 여기선 admin이 남의 행
+-- (= moderator 승격/해제 등 role 변경)을 고칠 수 있도록 별도 정책을 추가한다.
+-- 본인 admin 행을 스스로 못 내리도록 막진 않음(setRole 액션이 self/admin 변경을 차단).
+drop policy if exists "admins can update any profile" on public.profiles;
+create policy "admins can update any profile"
+  on public.profiles for update
+  using (public.is_admin())
+  with check (public.is_admin());
+
 -- 1) 카테고리 ----------------------------------------------------
 create table if not exists public.categories (
   id          bigint generated always as identity primary key,
@@ -351,6 +374,8 @@ create policy "reports staff delete"
   on public.reports for delete using (public.is_staff());
 
 -- 자동숨김: 서로 다른 신고자 5명 이상이면 대상 글/댓글 is_hidden=true.
+-- open 신고만 카운트한다. 운영자가 복원하면 신고가 resolved 처리되어 카운트가
+-- 0으로 리셋되고(=사면), 다시 숨기려면 새 신고 5명이 필요하다.
 create or replace function public.on_report_insert()
 returns trigger language plpgsql security definer set search_path = '' as $$
 declare
@@ -358,7 +383,8 @@ declare
 begin
   select count(distinct reporter_id) into cnt
   from public.reports
-  where target_type = new.target_type and target_id = new.target_id;
+  where target_type = new.target_type and target_id = new.target_id
+    and status = 'open';
 
   if cnt >= 5 then
     if new.target_type = 'post' then

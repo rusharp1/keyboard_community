@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   getCategories,
@@ -27,6 +28,25 @@ export async function generateMetadata({
   return { title: post ? `${post.title} — 커뮤니티` : "글을 찾을 수 없음" };
 }
 
+// 이전 페이지 경로를 referer로 추정. 같은 호스트일 때만 사용(오픈 리다이렉트 방지),
+// 자기 자신이면 루프 방지로 목록으로. 그 외엔 커뮤니티 목록으로 폴백.
+async function backUrl(id: string): Promise<string> {
+  const h = await headers();
+  const referer = h.get("referer");
+  const host = h.get("host");
+  if (referer && host) {
+    try {
+      const u = new URL(referer);
+      if (u.host === host && u.pathname !== `/community/${id}`) {
+        return u.pathname + u.search;
+      }
+    } catch {
+      // 잘못된 referer는 무시.
+    }
+  }
+  return "/community";
+}
+
 export default async function PostDetailPage({
   params,
 }: {
@@ -34,7 +54,8 @@ export default async function PostDetailPage({
 }) {
   const { id } = await params;
   const post = await getPost(id);
-  if (!post) notFound();
+  // 삭제됐거나(또는 숨김글에 권한 없는 접근) 글이 없으면 404 대신 이전 페이지로.
+  if (!post) redirect(await backUrl(id));
 
   const supabase = await createClient();
   const {
