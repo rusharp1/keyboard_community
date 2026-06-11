@@ -47,6 +47,17 @@ export type Comment = {
   author: Author | null;
 };
 
+// 마이페이지 "내 댓글" 행 — 소속 글 제목 포함.
+export type MyCommentItem = {
+  id: string;
+  post_id: string;
+  body: string;
+  is_hidden: boolean;
+  like_count: number;
+  created_at: string;
+  post_title: string | null;
+};
+
 // 활동등급 — activity_score 임계값 기반(표시 전용, 권한과 무관).
 // 임계값은 2차에서 운영 데이터 보고 조정 가능.
 export const LEVELS = [

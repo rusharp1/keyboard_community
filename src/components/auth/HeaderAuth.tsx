@@ -48,7 +48,7 @@ export default async function HeaderAuth() {
         <BellMenu notifications={notifications} unreadCount={unreadCount} />
       )}
       <Link
-        href="/community/settings"
+        href="/community/me"
         className="px-2 text-sm font-medium text-foreground hover:underline"
       >
         {nickname}

@@ -6,6 +6,7 @@ import type {
   Category,
   Comment,
   ModerationItem,
+  MyCommentItem,
   Post,
   PostListItem,
   ReportReason,
@@ -236,6 +237,68 @@ export async function getStaffAndCandidates(): Promise<{
     staff: all.filter((p) => p.role === "admin" || p.role === "moderator"),
     candidates: all.filter((p) => p.role === "user").slice(0, 30),
   };
+}
+
+// ── 마이페이지(내 글 / 내 댓글 / 좋아요한 글) ──
+
+// 내가 쓴 글(숨김 포함 — 본인은 자기 숨김글을 볼 수 있어 상태를 알려준다).
+export async function getMyPosts(
+  userId: string,
+): Promise<(PostListItem & { is_hidden: boolean })[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("posts")
+    .select(`${LIST_COLS}, is_hidden`)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  return (data as unknown as (PostListItem & { is_hidden: boolean })[]) ?? [];
+}
+
+// 내가 쓴 댓글 — 소속 글 제목을 임베드해 목록·링크에 쓴다.
+export async function getMyComments(userId: string): Promise<MyCommentItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("comments")
+    .select("id, post_id, body, is_hidden, like_count, created_at, post:posts!post_id(title)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  const rows = (data ?? []) as unknown as Array<{
+    id: string;
+    post_id: string;
+    body: string;
+    is_hidden: boolean;
+    like_count: number;
+    created_at: string;
+    post: { title: string } | null;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    post_id: r.post_id,
+    body: r.body,
+    is_hidden: r.is_hidden,
+    like_count: r.like_count,
+    created_at: r.created_at,
+    post_title: r.post?.title ?? null,
+  }));
+}
+
+// 내가 좋아요한 글(최근 좋아요순). 숨김 처리된 글은 제외.
+export async function getLikedPosts(userId: string): Promise<PostListItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("post_likes")
+    .select(`created_at, post:posts!post_id(${LIST_COLS}, is_hidden)`)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  const rows = (data ?? []) as unknown as Array<{
+    post: (PostListItem & { is_hidden: boolean }) | null;
+  }>;
+  return rows
+    .map((r) => r.post)
+    .filter((p): p is PostListItem & { is_hidden: boolean } => !!p && !p.is_hidden);
 }
 
 // 현재 유저가 이 글을 좋아요 했는지.
