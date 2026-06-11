@@ -10,7 +10,7 @@ import {
   getPost,
   hasLiked,
 } from "@/lib/community/queries";
-import { deletePost } from "@/app/community/actions";
+import { deletePost, togglePin } from "@/app/community/actions";
 import AuthorBadge from "@/components/community/AuthorBadge";
 import LikeButton from "@/components/community/LikeButton";
 import CommentSection from "@/components/community/CommentSection";
@@ -18,6 +18,7 @@ import ConfirmSubmitButton from "@/components/community/ConfirmSubmitButton";
 import ViewTracker from "@/components/community/ViewTracker";
 import ReportButton from "@/components/community/ReportButton";
 import Markdown from "@/components/community/Markdown";
+import PostImages from "@/components/community/PostImages";
 import { formatDate } from "@/lib/community/format";
 
 export async function generateMetadata({
@@ -116,6 +117,19 @@ export default async function PostDetailPage({
         <AuthorBadge author={post.author} />
         {canEdit && (
           <div className="flex items-center gap-2 text-sm">
+            {isStaff && (
+              <form action={togglePin}>
+                <input type="hidden" name="id" value={post.id} />
+                <input type="hidden" name="pinned" value={(!post.pinned).toString()} />
+                <button
+                  type="submit"
+                  className="text-muted hover:text-foreground"
+                  title={post.pinned ? "상단 고정 해제" : "상단 고정"}
+                >
+                  {post.pinned ? "고정 해제" : "고정"}
+                </button>
+              </form>
+            )}
             <Link
               href={`/community/${post.id}/edit`}
               className="text-muted hover:text-foreground"
@@ -141,31 +155,20 @@ export default async function PostDetailPage({
         </div>
       )}
 
-      {post.images.length > 0 && (
-        <div className="mt-6 space-y-3">
-          {post.images.map((src) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={src}
-              src={src}
-              alt=""
-              className="w-full rounded-lg border border-border"
-            />
-          ))}
-        </div>
-      )}
+      <PostImages images={post.images} />
 
       <ViewTracker postId={post.id} />
 
       {post.tags.length > 0 && (
         <div className="mt-6 flex flex-wrap gap-1.5">
           {post.tags.map((t) => (
-            <span
+            <Link
               key={t}
-              className="rounded-full bg-surface px-2.5 py-0.5 text-xs text-muted"
+              href={`/community?tag=${encodeURIComponent(t)}`}
+              className="rounded-full bg-surface px-2.5 py-0.5 text-xs text-muted hover:bg-surface-2 hover:text-foreground"
             >
               #{t}
-            </span>
+            </Link>
           ))}
         </div>
       )}

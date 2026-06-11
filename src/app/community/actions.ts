@@ -353,6 +353,17 @@ export async function moderateDelete(formData: FormData): Promise<void> {
   revalidatePath("/community/admin");
 }
 
+// 운영진: 글 상단 고정 토글. 목록은 pinned 우선 정렬되어 있다.
+export async function togglePin(formData: FormData): Promise<void> {
+  const { supabase } = await requireStaff();
+  const id = String(formData.get("id") ?? "");
+  const pinned = formData.get("pinned") === "true";
+  if (!id) return;
+  await supabase.from("posts").update({ pinned }).eq("id", id);
+  revalidatePath(`/community/${id}`);
+  revalidatePath("/community");
+}
+
 // admin: 역할 변경(운영진 승격/해제). admin 지정은 UI 밖(스크립트)에서만.
 export async function setRole(formData: FormData): Promise<void> {
   const { supabase, user } = await requireAdmin();

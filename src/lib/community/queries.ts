@@ -41,17 +41,19 @@ type ListOpts = {
   categoryId?: number;
   sort?: "latest" | "popular";
   search?: string;
+  tag?: string;
   limit?: number;
 };
 
 export async function listPosts(opts: ListOpts = {}): Promise<PostListItem[]> {
-  const { categoryId, sort = "latest", search, limit = 30 } = opts;
+  const { categoryId, sort = "latest", search, tag, limit = 30 } = opts;
   const supabase = await createClient();
   // 숨김글(신고 누적·운영자 숨김)은 목록에 노출하지 않는다. 운영진/작성자라도
   // RLS상 보일 뿐, 목록에는 띄우지 않고 상세 직링크/검토큐로만 접근.
   let q = supabase.from("posts").select(LIST_COLS).eq("is_hidden", false).limit(limit);
 
   if (categoryId) q = q.eq("category_id", categoryId);
+  if (tag?.trim()) q = q.contains("tags", [tag.trim()]); // tags text[] GIN 인덱스 활용
   if (search?.trim()) {
     const term = search.trim().replace(/[%,]/g, " ");
     q = q.or(`title.ilike.%${term}%,body.ilike.%${term}%`);

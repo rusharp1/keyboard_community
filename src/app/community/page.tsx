@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "커뮤니티 — 키보드 커뮤니티",
 };
 
-type SP = { category?: string; sort?: string; q?: string };
+type SP = { category?: string; sort?: string; q?: string; tag?: string };
 
 // 현재 파라미터를 유지하며 일부만 바꾼 쿼리스트링을 만든다.
 function qs(base: SP, patch: Partial<SP>): string {
@@ -19,6 +19,7 @@ function qs(base: SP, patch: Partial<SP>): string {
   if (merged.category) p.set("category", merged.category);
   if (merged.sort) p.set("sort", merged.sort);
   if (merged.q) p.set("q", merged.q);
+  if (merged.tag) p.set("tag", merged.tag);
   const s = p.toString();
   return s ? `/community?${s}` : "/community";
 }
@@ -38,11 +39,12 @@ export default async function CommunityPage({
     categoryId: activeCat?.id,
     sort,
     search: sp.q,
+    tag: sp.tag,
   });
   const catName = new Map(categories.map((c) => [c.id, c.name]));
 
   // 인기글은 필터/검색이 없는 기본 화면에서만 노출.
-  const showBest = !sp.q && !activeCat;
+  const showBest = !sp.q && !sp.tag && !activeCat;
   const best = showBest ? await getBestPosts(5) : [];
 
   // 운영진이면 "운영" 링크 노출.
@@ -99,6 +101,22 @@ export default async function CommunityPage({
 
         {/* 본문 */}
         <div className="min-w-0 flex-1">
+          {/* 태그 필터 칩 */}
+          {sp.tag && (
+            <div className="mb-4 flex items-center gap-2 text-sm">
+              <span className="rounded-full bg-accent/15 px-3 py-1 font-medium text-accent">
+                #{sp.tag}
+              </span>
+              <Link
+                href={qs(sp, { tag: undefined })}
+                className="text-muted hover:text-foreground"
+                aria-label="태그 필터 해제"
+              >
+                ✕
+              </Link>
+            </div>
+          )}
+
           {/* 인기글(Best) */}
           {best.length > 0 && (
             <section className="mb-5">
