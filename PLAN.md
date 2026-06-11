@@ -15,7 +15,8 @@
 - **키캡 도감 `/keycaps`** — 38종(JTK 1 + AKKO 37). 제조사 식별 세트만 수록. 카드/상세에 프로파일·재질·대표 색감 표시, **제조사·프로파일·재질 드롭다운 필터**(`SearchableSelect`, 검색 가능), 상세에 공식 구매처(buyUrl) 링크.
 - **키보드 도감 `/keyboards`** — 15종(AULA 독거미 11 + Swagkeys/Shortcut 4). **모델=항목 1개**, 색상·연결은 배열(변형), 번들 축은 축 도감과 slug 크로스링크(상세에서 `/switches/[slug]` 링크). 종류 필드(기계식/자석축(HE)/멤브레인), 색상 hex 스와치, LCD·핫스왑 배지. 필터: 브랜드·배열·연결·종류·세부 축·색상계열·재질 드롭다운 + 핫스왑 토글. 가격은 "약 ~원부터" 대략가.
 - **공용 UI 패턴**: 검색 가능한 드롭다운은 `src/components/SearchableSelect.tsx` 재사용(축·키캡 공통). 카드(`SwitchCard`/`KeycapCard`)는 배지/칩을 헤더 아래 가로 줄(`flex flex-wrap`)로 두어 같은 행 카드 높이를 균일하게 유지.
-- **인증 완료·배포**: 이메일+비밀번호(1단계) + 네이버 로그인(2단계). `/login`·`/signup`·`/onboarding` 동작. `/community`는 아직 stub(3단계에서 게시판).
+- **인증 완료·배포**: 이메일+비밀번호(1단계) + 네이버 로그인(2단계). `/login`·`/signup`·`/onboarding` 동작.
+- **커뮤니티 게시판 가동**: `/community` 게시판 Phase 1~5 구현 완료(글/댓글/좋아요·이미지/검색/인기글·신고/모더레이션·인앱알림·댓글좋아요·본문 마크다운). 진행상황·핸드오프는 `docs/community_progress.md`, DB는 `docs/sql/community.sql`. (브랜치 `feat/community-board` — main 미머지)
 
 ---
 
@@ -56,4 +57,5 @@
 
 **운영 전 필수 — 커스텀 SMTP**: Supabase 내장 메일은 dev 전용(시간당 한도·스팸함 직행). 실사용자 공개 전 **Resend 등 SMTP 연결**로 한도·도달률 해결(E2E 03도 자동화 가능). 도메인: eu.org(무료·승인 느림)/GitHub 학생팩 .me/저가 도메인(연 수천원) 중 택. 네이버 로그인은 메일 안 보내 무관.
 
-**커뮤니티 3단계 (다음 작업, 미착수)**: `posts`(+ `comments`, `likes`). RLS는 읽기 공개·쓰기/수정/삭제는 본인만(`auth.uid()=user_id`). posts RLS 패턴은 `docs/sql/profiles.sql` 하단에 주석으로 있음. 게시판 UI·CRUD는 별도 인터뷰로 스펙 확정. (글 작성 가드는 `requireProfile` 패턴으로 profiles 없으면 `/onboarding`.)
+**커뮤니티 3단계 (✅ Phase 1~5 완료)**: `posts`/`comments`/`post_likes`/`comment_likes`/`reports`/`post_views`/`notifications`/`notification_prefs` + `categories`(DB-driven 10종). 역할 user/moderator/admin + 활동등급 표시, 신고 5명 자동숨김+검토큐, 인앱 알림(헤더 종)·설정 매트릭스, 댓글 좋아요, 본문 마크다운(XSS-safe). 글 작성 가드는 `requireProfile`. **상세 진행상황·파일지도·검증·남은일은 `docs/community_progress.md`**, DB는 `docs/sql/community.sql`(사용자가 SQL Editor에서 적용), 스펙은 플랜 `~/.claude/plans/md-peppy-seahorse.md`.
+- **후속(별도)**: 이메일 알림 활성화(SMTP/Resend + 잠금메일), 장터(전용 필드·별도 스펙), 앱 푸시. 2차 결정: 점수 가중치·등급 임계값, fan-out broadcast 전환, 익명 조회수 dedupe.
