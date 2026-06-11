@@ -5,6 +5,7 @@ import type {
   AdminProfile,
   Category,
   Comment,
+  ActivitySummary,
   ModerationItem,
   MyCommentItem,
   Post,
@@ -325,6 +326,62 @@ export async function isBookmarked(postId: string, userId: string): Promise<bool
     .eq("user_id", userId)
     .maybeSingle();
   return !!data;
+}
+
+// ── 공개 프로필 + 활동 요약 ──
+
+// 닉네임으로 프로필 조회(공개 프로필 페이지용).
+export async function getProfileByNickname(
+  nickname: string,
+): Promise<AdminProfile | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, nickname, role, activity_score")
+    .eq("nickname", nickname)
+    .maybeSingle();
+  return (data as AdminProfile | null) ?? null;
+}
+
+// 특정 유저의 공개(비숨김) 글 목록.
+export async function getUserPosts(userId: string): Promise<PostListItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("posts")
+    .select(LIST_COLS)
+    .eq("user_id", userId)
+    .eq("is_hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  return (data as unknown as PostListItem[]) ?? [];
+}
+
+// 활동 요약(글 수·댓글 수·받은 좋아요 합). 마이페이지·공개 프로필 공용.
+export async function getActivitySummary(
+  userId: string,
+): Promise<ActivitySummary> {
+  const supabase = await createClient();
+  const [postCount, commentCount, postLikes, commentLikes] = await Promise.all([
+    supabase
+      .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("is_hidden", false),
+    supabase
+      .from("comments")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("is_hidden", false),
+    supabase.from("posts").select("like_count").eq("user_id", userId).eq("is_hidden", false),
+    supabase.from("comments").select("like_count").eq("user_id", userId).eq("is_hidden", false),
+  ]);
+  const sum = (rows: { like_count: number }[] | null) =>
+    (rows ?? []).reduce((acc, r) => acc + (r.like_count ?? 0), 0);
+  return {
+    posts: postCount.count ?? 0,
+    comments: commentCount.count ?? 0,
+    receivedLikes: sum(postLikes.data) + sum(commentLikes.data),
+  };
 }
 
 // 내가 북마크한 글(최근 저장순). 숨김 처리된 글은 제외.

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireProfile } from "@/lib/auth/guards";
 import {
+  getActivitySummary,
   getBookmarkedPosts,
   getCategories,
   getLikedPosts,
@@ -41,13 +42,14 @@ export default async function MyPage({
           : "posts";
   const level = levelFor(profile.activity_score);
 
-  // 활성 탭만 조회.
-  const [posts, comments, liked, bookmarks, categories] = await Promise.all([
+  // 활성 탭만 조회 + 활동 요약(항상).
+  const [posts, comments, liked, bookmarks, categories, summary] = await Promise.all([
     tab === "posts" ? getMyPosts(user.id) : Promise.resolve([]),
     tab === "comments" ? getMyComments(user.id) : Promise.resolve([]),
     tab === "likes" ? getLikedPosts(user.id) : Promise.resolve([]),
     tab === "bookmarks" ? getBookmarkedPosts(user.id) : Promise.resolve([]),
     getCategories(),
+    getActivitySummary(user.id),
   ]);
   const catName = new Map(categories.map((c) => [c.id, c.name]));
 
@@ -91,6 +93,22 @@ export default async function MyPage({
           알림 설정
         </Link>
       </div>
+
+      {/* 활동 요약 */}
+      <dl className="mt-4 flex gap-6 rounded-lg border border-border bg-surface px-4 py-3 text-sm">
+        <div>
+          <dt className="text-muted">글</dt>
+          <dd className="font-semibold text-foreground">{summary.posts}</dd>
+        </div>
+        <div>
+          <dt className="text-muted">댓글</dt>
+          <dd className="font-semibold text-foreground">{summary.comments}</dd>
+        </div>
+        <div>
+          <dt className="text-muted">받은 좋아요</dt>
+          <dd className="font-semibold text-foreground">{summary.receivedLikes}</dd>
+        </div>
+      </dl>
 
       <nav className="mt-5 flex gap-1">
         {TABS.map((t) => (

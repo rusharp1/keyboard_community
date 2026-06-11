@@ -120,7 +120,14 @@ export default async function PostDetailPage({
       )}
 
       <div className="mt-3 flex items-center justify-between">
-        <AuthorBadge author={post.author} />
+        <AuthorBadge
+          author={post.author}
+          href={
+            post.author
+              ? `/community/u/${encodeURIComponent(post.author.nickname)}`
+              : undefined
+          }
+        />
         {canEdit && (
           <div className="flex items-center gap-2 text-sm">
             {isStaff && (

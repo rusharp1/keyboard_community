@@ -47,6 +47,13 @@ export type Comment = {
   author: Author | null;
 };
 
+// 활동 요약(마이페이지·공개 프로필 공용).
+export type ActivitySummary = {
+  posts: number;
+  comments: number;
+  receivedLikes: number;
+};
+
 // 마이페이지 "내 댓글" 행 — 소속 글 제목 포함.
 export type MyCommentItem = {
   id: string;

@@ -27,7 +27,14 @@ export default function CommentView({
     <div className={isReply ? "ml-6 border-l border-border pl-4" : ""}>
       <div className="flex items-center justify-between text-xs text-muted">
         <div className="flex items-center gap-2">
-          <AuthorBadge author={comment.author} />
+          <AuthorBadge
+            author={comment.author}
+            href={
+              comment.author
+                ? `/community/u/${encodeURIComponent(comment.author.nickname)}`
+                : undefined
+            }
+          />
           <span>·</span>
           <span>{formatDate(comment.created_at)}</span>
         </div>
