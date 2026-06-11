@@ -65,10 +65,10 @@ npm run build                             # 컴파일(마크다운 RSC 포함)
 - check-community-schema: **13/13 ✅** (10 카테고리 시드 확인)
 - verify-phase2: **8/8 ✅** · phase3: **5/5 ✅** · phase4: **10/10 ✅** · phase5: **7/7 ✅**
 - `npm run build`: **green** (190 페이지, exit 0)
-- **Playwright E2E `e2e/04-community.spec.ts`: 6/6 ✅** — 글 작성→상세, 댓글, 좋아요 토글, 마크다운+XSS(브라우저에서 `window.__xss` 미정의·`<script>` DOM 미주입·`javascript:` 링크 0개 확인), 마이페이지 내 글, 비로그인 글쓰기→/login. 실행: `npx playwright test e2e/04-community.spec.ts`(dev 서버 webpack 자동 기동, 긴 명령은 로그파일+백그라운드 권장).
+- **Playwright E2E `e2e/04-community.spec.ts`: 9/9 ✅** (태그 1건 webpack 첫 컴파일로 flaky→retry 통과) — 글 작성→상세, 댓글, 좋아요 토글, 마크다운+XSS(브라우저에서 `window.__xss` 미정의·`<script>` DOM 미주입·`javascript:` 링크 0개 확인), 마이페이지 내 글, **북마크 토글→저장 탭, 상세 태그 클릭→필터, 공개 프로필+활동요약**, 비로그인 글쓰기→/login. 실행: `npx playwright test e2e/04-community.spec.ts`(dev 서버 webpack 자동 기동, 긴 명령은 로그파일+백그라운드 권장).
 
 ### 자동화로 커버됨(재확인 불필요)
-글 작성·상세, 댓글 작성, 좋아요 토글, 마크다운 렌더 & XSS 무력화, 마이페이지 "내 글", 비로그인 글쓰기 가드 → 위 E2E가 검증.
+글 작성·상세, 댓글 작성, 좋아요 토글, 마크다운 렌더 & XSS 무력화, 마이페이지 "내 글", 북마크 토글, 태그 필터, 공개 프로필, 비로그인 글쓰기 가드 → 위 E2E가 검증.
 
 ### 사용자가 직접 검토할 항목 (자동화 밖 — 시각·다계정·운영 판단 필요)
 - [ ] **마이페이지 나머지 탭**: "내 댓글"(글 제목 링크 이동), "좋아요한 글"(좋아요 후 실제 표시), 숨김글 "숨김" 뱃지

@@ -21,12 +21,18 @@ test.afterAll(async () => {
 // /community/new 에서 글 작성 → 상세 URL 반환.
 async function createPost(
   page: Page,
-  { title, body, category = "자유" }: { title: string; body: string; category?: string },
+  {
+    title,
+    body,
+    category = "자유",
+    tags,
+  }: { title: string; body: string; category?: string; tags?: string },
 ): Promise<string> {
   await page.goto("/community/new");
   await page.locator("#category_id").selectOption({ label: category });
   await page.locator("#title").fill(title);
   await page.locator("#body").fill(body);
+  if (tags) await page.locator("#tags").fill(tags);
   await page.getByRole("button", { name: "등록" }).click();
   await page.waitForURL(/\/community\/[0-9a-f-]{36}/i, { timeout: 30_000 });
   return page.url();
@@ -106,6 +112,43 @@ test("마이페이지 — 내 글 탭에 방금 쓴 글", async ({ page }) => {
   // 좋아요한 글 탭은 비어 있음(아직 좋아요 안 함)
   await page.getByRole("link", { name: "좋아요한 글" }).click();
   await expect(page.getByText("아직 좋아요한 글이 없어요.")).toBeVisible();
+});
+
+test("북마크 토글 → 마이페이지 '저장' 탭", async ({ page }) => {
+  await loginViaUI(page, user.email);
+  await page.waitForURL(/\/community/, { timeout: 30_000 });
+  const title = `북마크글 ${Date.now()}`;
+  await createPost(page, { title, body: "x" });
+
+  await page.getByRole("button", { name: "저장" }).click();
+  await expect(page.getByRole("button", { name: "저장됨" })).toBeVisible();
+
+  await page.goto("/community/me?tab=bookmarks");
+  await expect(page.getByText(title)).toBeVisible();
+});
+
+test("상세 태그 클릭 → 태그 필터 목록", async ({ page }) => {
+  await loginViaUI(page, user.email);
+  await page.waitForURL(/\/community/, { timeout: 30_000 });
+  const tag = `태그${Date.now()}`;
+  const title = `태그글 ${Date.now()}`;
+  await createPost(page, { title, body: "x", tags: tag });
+
+  await page.getByRole("link", { name: `#${tag}` }).click();
+  await page.waitForURL(new RegExp(`tag=`), { timeout: 30_000 });
+  await expect(page.getByText(title)).toBeVisible();
+});
+
+test("공개 프로필 → 작성글 + 활동요약 노출", async ({ page }) => {
+  await loginViaUI(page, user.email);
+  await page.waitForURL(/\/community/, { timeout: 30_000 });
+  const title = `프로필글 ${Date.now()}`;
+  await createPost(page, { title, body: "x" });
+
+  await page.goto(`/community/u/${encodeURIComponent(nick)}`);
+  await expect(page.getByRole("heading", { name: nick })).toBeVisible();
+  await expect(page.getByText("받은 좋아요")).toBeVisible();
+  await expect(page.getByText(title)).toBeVisible();
 });
 
 test("비로그인 글쓰기 접근 → /login 리다이렉트", async ({ page }) => {
