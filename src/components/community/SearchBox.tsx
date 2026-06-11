@@ -9,12 +9,24 @@ export default function SearchBox() {
   const params = useSearchParams();
   const [value, setValue] = useState(params.get("q") ?? "");
 
-  function submit(e: FormEvent) {
-    e.preventDefault();
+  // q만 갱신/해제하고 나머지 쿼리(category·sort 등)는 유지.
+  function navigate(q: string) {
     const next = new URLSearchParams(params.toString());
-    if (value.trim()) next.set("q", value.trim());
+    if (q.trim()) next.set("q", q.trim());
     else next.delete("q");
     router.push(`/community?${next.toString()}`);
+  }
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    navigate(value);
+  }
+
+  function onChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    setValue(v);
+    // 네이티브 지우기(X)·수동 비우기로 입력이 비면 검색을 해제(=q 제거).
+    if (v === "" && params.get("q")) navigate("");
   }
 
   return (
@@ -22,13 +34,13 @@ export default function SearchBox() {
       <input
         type="search"
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={onChange}
         placeholder="제목·내용 검색"
-        className="w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm outline-none transition-colors focus:border-accent"
+        className="w-full min-w-0 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm outline-none transition-colors focus:border-accent"
       />
       <button
         type="submit"
-        className="rounded-lg bg-surface-2 px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-border"
+        className="shrink-0 whitespace-nowrap rounded-lg bg-surface-2 px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-border"
       >
         검색
       </button>

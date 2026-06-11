@@ -36,7 +36,7 @@ export default function ReportButton({
   return (
     <form
       action={action}
-      className="mt-2 space-y-2 rounded-lg border border-border bg-surface p-3"
+      className="mt-2 w-full space-y-2 rounded-lg border border-border bg-surface p-3"
     >
       <input type="hidden" name="target_type" value={targetType} />
       <input type="hidden" name="target_id" value={targetId} />

@@ -425,7 +425,8 @@ export async function markAllNotificationsRead(): Promise<void> {
     .update({ is_read: true })
     .eq("user_id", user.id)
     .eq("is_read", false);
-  revalidatePath("/community");
+  // 종은 루트 레이아웃(HeaderAuth)에 있으므로 레이아웃 단위로 revalidate해야 배지가 갱신된다.
+  revalidatePath("/", "layout");
 }
 
 // 알림 설정(이벤트×채널 매트릭스) 저장. 체크 안 된 체크박스는 폼에 안 실리므로 off로 간주.

@@ -488,6 +488,12 @@ create policy "notifications delete own"
   on public.notifications for delete using (auth.uid() = user_id);
 -- insert 정책 없음: notify() 트리거만 행을 만든다.
 
+-- 헤더 종 실시간 갱신: notifications를 realtime publication에 추가(멱등).
+-- RLS "notifications select own"이 구독 필터 → 브라우저는 본인 행 INSERT만 수신.
+do $$ begin
+  alter publication supabase_realtime add table public.notifications;
+exception when duplicate_object then null; end $$;
+
 -- 10) 알림 설정(이벤트×채널 토글) --------------------------------
 -- bell=인앱, email=이메일(저장만, 실제 발송은 SMTP 연결 후). 행이 없으면 기본값 사용.
 create table if not exists public.notification_prefs (

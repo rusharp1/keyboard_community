@@ -8,7 +8,7 @@ export default function ReplyToggle({ postId, parentId }: { postId: string; pare
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="mt-1">
+    <div className={open ? "w-full" : ""}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

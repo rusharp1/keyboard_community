@@ -45,13 +45,19 @@ export default async function HeaderAuth() {
   return (
     <div className="ml-2 flex items-center gap-1">
       {profile && (
-        <BellMenu notifications={notifications} unreadCount={unreadCount} />
+        <BellMenu
+          notifications={notifications}
+          unreadCount={unreadCount}
+          userId={user.id}
+        />
       )}
       <Link
         href="/community/me"
-        className="px-2 text-sm font-medium text-foreground hover:underline"
+        className="px-1 text-sm font-medium text-foreground hover:underline sm:px-2"
       >
-        {nickname}
+        <span className="inline-block max-w-[5.5rem] truncate align-middle">
+          {nickname}
+        </span>
       </Link>
       <form action={signOut}>
         <button
