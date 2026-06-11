@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import type { FormState } from "@/app/community/actions";
 import { BODY_MAX, TITLE_MAX } from "@/lib/community/limits";
 import ImageUploader from "./ImageUploader";
+import Markdown from "./Markdown";
 
 type CategoryOpt = { id: number; name: string };
 
@@ -31,6 +32,7 @@ export default function PostForm({
   // controlled 입력 — 서버 액션 폼 자동 초기화로 검증 실패 시 값이 날아가는 것 방지.
   const [title, setTitle] = useState(initial.title ?? "");
   const [body, setBody] = useState(initial.body ?? "");
+  const [tab, setTab] = useState<"write" | "preview">("write");
 
   return (
     <form action={formAction} className="space-y-4">
@@ -85,13 +87,32 @@ export default function PostForm({
 
       <div>
         <div className="mb-1 flex items-center justify-between">
-          <label className="block text-sm text-muted" htmlFor="body">
-            내용 <span className="text-xs">(선택)</span>
-          </label>
+          <div className="flex items-center gap-3">
+            <label className="block text-sm text-muted" htmlFor="body">
+              내용 <span className="text-xs">(선택)</span>
+            </label>
+            <div className="flex gap-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setTab("write")}
+                className={`rounded px-2 py-0.5 ${tab === "write" ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"}`}
+              >
+                쓰기
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("preview")}
+                className={`rounded px-2 py-0.5 ${tab === "preview" ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"}`}
+              >
+                미리보기
+              </button>
+            </div>
+          </div>
           <span className="text-[11px] text-muted">
             {body.length}/{BODY_MAX}
           </span>
         </div>
+        {/* textarea는 항상 마운트(폼 값 유지) — 미리보기 땐 숨김. */}
         <textarea
           id="body"
           name="body"
@@ -99,8 +120,21 @@ export default function PostForm({
           value={body}
           maxLength={BODY_MAX}
           onChange={(e) => setBody(e.target.value)}
-          className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+          className={`w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent ${tab === "preview" ? "hidden" : ""}`}
         />
+        {tab === "preview" &&
+          (body.trim() ? (
+            <div className="min-h-[18rem] rounded-lg border border-border bg-surface px-3 py-2">
+              <Markdown>{body}</Markdown>
+            </div>
+          ) : (
+            <p className="min-h-[18rem] rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted">
+              미리볼 내용이 없습니다.
+            </p>
+          ))}
+        <p className="mt-1 text-[11px] text-muted">
+          마크다운 지원 — **굵게**, *기울임*, # 제목, - 목록, [링크](url), `코드`
+        </p>
         {state.fieldErrors?.body && (
           <p className="mt-1 text-xs text-accent">{state.fieldErrors.body}</p>
         )}

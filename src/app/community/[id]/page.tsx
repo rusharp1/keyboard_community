@@ -17,6 +17,7 @@ import CommentSection from "@/components/community/CommentSection";
 import ConfirmSubmitButton from "@/components/community/ConfirmSubmitButton";
 import ViewTracker from "@/components/community/ViewTracker";
 import ReportButton from "@/components/community/ReportButton";
+import Markdown from "@/components/community/Markdown";
 import { formatDate } from "@/lib/community/format";
 
 export async function generateMetadata({
@@ -135,8 +136,8 @@ export default async function PostDetailPage({
       </div>
 
       {post.body.trim() && (
-        <div className="mt-6 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground">
-          {post.body}
+        <div className="mt-6">
+          <Markdown>{post.body}</Markdown>
         </div>
       )}
 
