@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireProfile } from "@/lib/auth/guards";
 import {
+  getBookmarkedPosts,
   getCategories,
   getLikedPosts,
   getMyComments,
@@ -14,12 +15,13 @@ import { formatDate } from "@/lib/community/format";
 export const metadata: Metadata = { title: "마이페이지 — 커뮤니티" };
 
 type SP = { tab?: string };
-type Tab = "posts" | "comments" | "likes";
+type Tab = "posts" | "comments" | "likes" | "bookmarks";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "posts", label: "내 글" },
   { key: "comments", label: "내 댓글" },
   { key: "likes", label: "좋아요한 글" },
+  { key: "bookmarks", label: "저장" },
 ];
 
 export default async function MyPage({
@@ -30,14 +32,21 @@ export default async function MyPage({
   const { user, profile } = await requireProfile();
   const sp = await searchParams;
   const tab: Tab =
-    sp.tab === "comments" ? "comments" : sp.tab === "likes" ? "likes" : "posts";
+    sp.tab === "comments"
+      ? "comments"
+      : sp.tab === "likes"
+        ? "likes"
+        : sp.tab === "bookmarks"
+          ? "bookmarks"
+          : "posts";
   const level = levelFor(profile.activity_score);
 
   // 활성 탭만 조회.
-  const [posts, comments, liked, categories] = await Promise.all([
+  const [posts, comments, liked, bookmarks, categories] = await Promise.all([
     tab === "posts" ? getMyPosts(user.id) : Promise.resolve([]),
     tab === "comments" ? getMyComments(user.id) : Promise.resolve([]),
     tab === "likes" ? getLikedPosts(user.id) : Promise.resolve([]),
+    tab === "bookmarks" ? getBookmarkedPosts(user.id) : Promise.resolve([]),
     getCategories(),
   ]);
   const catName = new Map(categories.map((c) => [c.id, c.name]));
@@ -54,7 +63,9 @@ export default async function MyPage({
       ? "아직 작성한 글이 없어요."
       : tab === "comments"
         ? "아직 작성한 댓글이 없어요."
-        : "아직 좋아요한 글이 없어요.";
+        : tab === "likes"
+          ? "아직 좋아요한 글이 없어요."
+          : "아직 저장한 글이 없어요.";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -139,6 +150,16 @@ export default async function MyPage({
             <Empty text={emptyText} />
           ) : (
             liked.map((p) => (
+              <PostRow key={p.id} post={p} categoryName={catName.get(p.category_id)} />
+            ))
+          ))}
+
+        {/* 저장한 글(북마크) */}
+        {tab === "bookmarks" &&
+          (bookmarks.length === 0 ? (
+            <Empty text={emptyText} />
+          ) : (
+            bookmarks.map((p) => (
               <PostRow key={p.id} post={p} categoryName={catName.get(p.category_id)} />
             ))
           ))}

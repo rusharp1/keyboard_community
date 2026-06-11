@@ -246,6 +246,31 @@ export async function toggleCommentLike(formData: FormData): Promise<void> {
   if (postId) revalidatePath(`/community/${postId}`);
 }
 
+// 북마크(스크랩) 토글 — 본인만, 비공개. 좋아요와 동일 구조이나 카운터 없음.
+export async function toggleBookmark(formData: FormData): Promise<void> {
+  const { supabase, user } = await requireProfile();
+  const postId = String(formData.get("post_id") ?? "");
+  if (!postId) return;
+
+  const { data: existing } = await supabase
+    .from("post_bookmarks")
+    .select("post_id")
+    .eq("post_id", postId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("post_bookmarks")
+      .delete()
+      .eq("post_id", postId)
+      .eq("user_id", user.id);
+  } else {
+    await supabase.from("post_bookmarks").insert({ post_id: postId, user_id: user.id });
+  }
+  revalidatePath(`/community/${postId}`);
+}
+
 // 조회수 1회 집계(하루·뷰어 단위 중복방지). 상세 페이지에서 1회 호출.
 export async function recordView(postId: string): Promise<void> {
   if (!postId) return;

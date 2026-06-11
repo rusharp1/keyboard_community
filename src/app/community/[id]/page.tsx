@@ -9,10 +9,12 @@ import {
   getLikedCommentIds,
   getPost,
   hasLiked,
+  isBookmarked,
 } from "@/lib/community/queries";
 import { deletePost, togglePin } from "@/app/community/actions";
 import AuthorBadge from "@/components/community/AuthorBadge";
 import LikeButton from "@/components/community/LikeButton";
+import BookmarkButton from "@/components/community/BookmarkButton";
 import CommentSection from "@/components/community/CommentSection";
 import ConfirmSubmitButton from "@/components/community/ConfirmSubmitButton";
 import ViewTracker from "@/components/community/ViewTracker";
@@ -67,6 +69,7 @@ export default async function PostDetailPage({
 
   let isStaff = false;
   let liked = false;
+  let bookmarked = false;
   if (user) {
     const { data: prof } = await supabase
       .from("profiles")
@@ -74,7 +77,10 @@ export default async function PostDetailPage({
       .eq("id", user.id)
       .maybeSingle();
     isStaff = prof?.role === "admin" || prof?.role === "moderator";
-    liked = await hasLiked(id, user.id);
+    [liked, bookmarked] = await Promise.all([
+      hasLiked(id, user.id),
+      isBookmarked(id, user.id),
+    ]);
   }
   const canEdit = !!user && (user.id === post.user_id || isStaff);
   const canReport = !!user && user.id !== post.user_id;
@@ -173,9 +179,10 @@ export default async function PostDetailPage({
         </div>
       )}
 
-      <div className="mt-6 flex items-center gap-4">
+      <div className="mt-6 flex items-center gap-3">
         <LikeButton postId={post.id} liked={liked} count={post.like_count} />
-        <span className="text-sm text-muted">👁 {post.view_count}</span>
+        <BookmarkButton postId={post.id} bookmarked={bookmarked} />
+        <span className="ml-1 text-sm text-muted">👁 {post.view_count}</span>
       </div>
 
       {canReport && (

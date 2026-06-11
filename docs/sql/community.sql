@@ -609,3 +609,31 @@ drop trigger if exists comment_likes_after_change on public.comment_likes;
 create trigger comment_likes_after_change
   after insert or delete on public.comment_likes
   for each row execute function public.on_comment_like_change();
+
+-- =============================================================
+-- Phase 6 — 북마크/스크랩
+-- =============================================================
+
+-- 13) 북마크 -----------------------------------------------------
+-- 비공개(본인만). 카운터·활동점수·알림 없음(좋아요와 달리 순수 개인 저장).
+create table if not exists public.post_bookmarks (
+  post_id     uuid not null references public.posts (id) on delete cascade,
+  user_id     uuid not null references public.profiles (id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+
+alter table public.post_bookmarks enable row level security;
+
+-- 읽기/쓰기 모두 본인 행만(좋아요와 달리 공개 카운트가 없음).
+drop policy if exists "bookmarks select own" on public.post_bookmarks;
+create policy "bookmarks select own"
+  on public.post_bookmarks for select using (auth.uid() = user_id);
+
+drop policy if exists "bookmarks insert own" on public.post_bookmarks;
+create policy "bookmarks insert own"
+  on public.post_bookmarks for insert with check (auth.uid() = user_id);
+
+drop policy if exists "bookmarks delete own" on public.post_bookmarks;
+create policy "bookmarks delete own"
+  on public.post_bookmarks for delete using (auth.uid() = user_id);

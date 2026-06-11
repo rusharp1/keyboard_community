@@ -52,5 +52,10 @@ await probe("comment_likes 테이블", () =>
   db.from("comment_likes").select("comment_id").limit(1),
 );
 
+// Phase 6
+await probe("post_bookmarks 테이블", () =>
+  db.from("post_bookmarks").select("post_id").limit(1),
+);
+
 const { data: cats } = await db.from("categories").select("slug, name").order("position");
 console.log("\n카테고리:", cats?.map((c) => `${c.slug}(${c.name})`).join(", ") ?? "(없음)");

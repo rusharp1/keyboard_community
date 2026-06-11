@@ -314,3 +314,32 @@ export async function hasLiked(postId: string, userId: string): Promise<boolean>
     .maybeSingle();
   return !!data;
 }
+
+// 현재 유저가 이 글을 북마크 했는지.
+export async function isBookmarked(postId: string, userId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("post_bookmarks")
+    .select("post_id")
+    .eq("post_id", postId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return !!data;
+}
+
+// 내가 북마크한 글(최근 저장순). 숨김 처리된 글은 제외.
+export async function getBookmarkedPosts(userId: string): Promise<PostListItem[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("post_bookmarks")
+    .select(`created_at, post:posts!post_id(${LIST_COLS}, is_hidden)`)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  const rows = (data ?? []) as unknown as Array<{
+    post: (PostListItem & { is_hidden: boolean }) | null;
+  }>;
+  return rows
+    .map((r) => r.post)
+    .filter((p): p is PostListItem & { is_hidden: boolean } => !!p && !p.is_hidden);
+}
