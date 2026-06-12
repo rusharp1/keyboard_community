@@ -380,6 +380,51 @@ export const keyboards: Keyboard[] = [
     buyUrl: SWAGKEY,
     instagramTags: ["swagkeys", "transitionlite"],
   },
+  {
+    slug: "wob-rainy75",
+    nameKo: "WOB 레이니75",
+    nameEn: "WOBKEY Rainy75",
+    brand: "WOB",
+    layout: "75%",
+    connections: ["유무선(트라이모드)"],
+    switchKind: "기계식",
+    hotswap: true,
+    material: "풀알루미늄 (CNC 6063)",
+    colors: [
+      { name: "블랙", hex: "#2b2b2e" },
+      { name: "실버", hex: "#c8ccd0" },
+      { name: "치즈 화이트", hex: "#f4ecd8" },
+      { name: "갤럭시 핑크", hex: "#d98fb0" },
+      { name: "아이스 블루", hex: "#bfe0e8" },
+    ],
+    availableSwitchSlugs: [],
+    priceFromKrw: 110000,
+    description:
+      "풀알루미늄 75% 배열 시장의 대표 모델. CNC 6063 알루미늄 바디 + 다층 흡음재 + PCB 가스켓 구조로 특유의 레인드롭(팝피) 사운드와 높은 완성도를 보여준다. 트라이모드 무선·핫스왑 지원. 기본 축은 HMX 바이올렛(JWK WOB·Kailh Cocoa 등 에디션별 상이). 리비전·판매처에 따라 색상/축/가격 변동.",
+    instagramTags: ["rainy75", "wobkey", "기계식키보드"],
+  },
+  {
+    slug: "mchose-gx87",
+    nameKo: "MCHOSE GX87",
+    nameEn: "MCHOSE GX87",
+    brand: "MCHOSE",
+    layout: "TKL(80%)",
+    connections: ["유무선(트라이모드)"],
+    switchKind: "기계식",
+    hotswap: true,
+    material: "풀알루미늄",
+    colors: [
+      { name: "블랙", hex: "#2b2b2e" },
+      { name: "화이트", hex: "#f2f2ee" },
+      { name: "실버", hex: "#c8ccd0" },
+    ],
+    availableSwitchSlugs: [],
+    priceFromKrw: 70000,
+    description:
+      "텐키리스(87키) 풀알루미늄 가성비 모델. 우수한 알루미늄 가공과 가스켓 마운트로 묵직한 타건감을 제공해 커뮤니티에서 평이 좋다. 트라이모드 무선·핫스왑. 번들 축은 HUANO 말차라떼 V2·KTT 빈티지 화이트 등 판매처별 상이. 리비전에 따라 색상/스펙 변동.",
+    needsInfo: true,
+    instagramTags: ["mchose", "gx87", "기계식키보드"],
+  },
 ];
 
 // ───────────────── 헬퍼 ─────────────────
