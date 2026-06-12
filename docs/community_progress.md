@@ -72,8 +72,8 @@ npm run build                             # 컴파일(마크다운 RSC 포함)
 ```
 > 셸 주의: 이 환경의 PowerShell 파이프(`Select-Object`)에서 도구 결과 전달이 깨진 사례가 있어 **Bash 도구**로 실행하는 게 안전.
 
-### 최근 검증 결과 (2026-06-11)
-- check-community-schema: **13/13 ✅** (10 카테고리 시드 확인)
+### 최근 검증 결과 (2026-06-12)
+- check-community-schema: **14/14 ✅** (post_bookmarks 포함, 10 카테고리 시드 확인)
 - verify-phase2: **8/8 ✅** · phase3: **5/5 ✅** · phase4: **10/10 ✅** · phase5: **7/7 ✅**
 - `npm run build`: **green** (190 페이지, exit 0)
 - **Playwright E2E `e2e/04-community.spec.ts`: 9/9 ✅** (태그 1건 webpack 첫 컴파일로 flaky→retry 통과) — 글 작성→상세, 댓글, 좋아요 토글, 마크다운+XSS(브라우저에서 `window.__xss` 미정의·`<script>` DOM 미주입·`javascript:` 링크 0개 확인), 마이페이지 내 글, **북마크 토글→저장 탭, 상세 태그 클릭→필터, 공개 프로필+활동요약**, 비로그인 글쓰기→/login. 실행: `npx playwright test e2e/04-community.spec.ts`(dev 서버 webpack 자동 기동, 긴 명령은 로그파일+백그라운드 권장).
@@ -128,10 +128,12 @@ npm run build                             # 컴파일(마크다운 RSC 포함)
 **검증 보강**
 - ✅ Playwright E2E 핵심 흐름(`e2e/04-community.spec.ts`, **9/9**). 신고→자동숨김·알림 종은 다계정 시나리오라 미자동화 → 위 "직접 검토할 항목"의 다계정 케이스로 남김. Phase 7(모바일·Realtime)은 시각/다계정이라 수동 점검.
 
-**검증용 seed 스크립트 (uncommitted, 의도적)**
-- `scripts/seed-admin.mjs` — admin 계정 1개(기본: 닉 키보드지기 / admin2@example.com / test123!). `--clean <email>`로 삭제.
-- `scripts/seed-level-users.mjs` — test1·2·3, 활동점수 9/49/149(등급 경계), 비번 test123!. `--clean`.
-- `scripts/seed-report-test.mjs` — 신고 4건 달린 글(5번째 신고 시 자동숨김 검증용). `--clean`.
+**검증용 seed 스크립트 (삭제됨 — 필요 시 재생성)**
+다계정 수동 검토용 픽스처 3종은 검증 후 삭제함. 재검토가 필요하면 아래 사양으로 재생성 요청:
+- admin 계정 1개(role=admin 표시 검증).
+- 활동점수 9/49/149(등급 경계 새싹→일반→열심→고수 검증).
+- 신고 4건 달린 글(5번째 신고 시 자동숨김 검증).
+> 첫 admin 지정은 `node scripts/set-role.mjs <email> admin`으로도 가능(이 스크립트는 유지됨).
 
 **별도 보류 (커뮤니티 무관)**
 - `shop2930@naver.com` 인증 클린 재검증(이메일 가입→확인→네이버 로그인 연결). 상세는 `e2e/TEST-RESULTS.md`.
