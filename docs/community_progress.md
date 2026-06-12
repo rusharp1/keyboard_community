@@ -2,13 +2,14 @@
 
 > 다음 세션이 맥락 없이 이어갈 수 있도록 정리한 문서. 상세 스펙·결정 근거는 플랜 파일
 > (`~/.claude/plans/md-peppy-seahorse.md`)에, 전체 사이트 계획은 루트 `PLAN.md`에 있다.
-> 최종 갱신: 2026-06-12, Phase 8(벌점제) 반영. **main 머지 + Vercel 배포 완료.**
+> 최종 갱신: 2026-06-12, Phase 9(도감 리뷰) 반영. **main 머지 + Vercel 배포 완료.**
 
 ## 한 줄 요약
-키보드 커뮤니티의 **게시판(커뮤니티 3단계)**을 인터뷰 스펙대로 Phase 1~8까지 구현 완료,
+키보드 커뮤니티의 **게시판(커뮤니티 3단계)**을 인터뷰 스펙대로 Phase 1~9까지 구현 완료,
 **main 머지 + Vercel 자동배포까지 끝남.** `/community`가 실제 게시판으로 라이브 가동 중.
+Phase 9로 **도감(축·키캡·키보드)에 다축 별점 리뷰 + 커뮤니티 후기 태깅**이 붙어 두 반쪽이 연결됨.
 
-## 현재 단계 (Phase 1~8 완료 · 배포됨)
+## 현재 단계 (Phase 1~9 완료 · 배포됨)
 | Phase | 내용 | 커밋 |
 |---|---|---|
 | 1 | 스키마·RLS + 글/댓글/대댓글/좋아요 + 목록·상세 | `6cab823` |
@@ -24,6 +25,7 @@
 | 6 | 공개 프로필 `/community/u/[nickname]` + 활동 요약 | `6986c09` |
 | 7 | 모바일 UX 정리·알림 Realtime화·운영자 등급 표시 | `263dcd9` |
 | 8 | 벌점제(운영자 확인 후 부과 → 누적 경고/정지/영구 + 쓰기 차단 가드) | `24e585a` |
+| 9 | 도감 연동 리뷰·다축 별점(하이브리드) + 커뮤니티 후기 아이템 태깅 | `(이 커밋)` |
 
 브랜치: **`main`** (= `feat/community-board`, fast-forward 머지). Vercel 자동배포됨.
 
@@ -40,6 +42,7 @@
 - **Supabase 프로젝트 1개**: 로컬 dev와 배포(Vercel)가 **같은 프로젝트**를 씀(별도 prod DB 없음). → SQL Editor에서 적용한 DDL이 운영에도 즉시 반영. 이번 Realtime publication도 적용 완료.
 - **알림 Realtime**: `notifications`가 `supabase_realtime` publication에 추가됨(멱등 SQL, `community.sql` 하단). 안 되면 대시보드 Database→Replication에서 확인.
 - **Phase 8 적용 완료**: `community.sql` 하단 Phase 8(profiles 제재컬럼·`penalties`·트리거·notifications type 확장) SQL Editor 적용됨(verify-phase8 8/8). ⚠️ **`requireProfile`가 제재컬럼을 select**하므로 이 DDL 미적용 시 커뮤니티 쓰기 경로 전체가 깨진다 — 코드와 SQL은 함께 배포해야 함.
+- **Phase 9 적용 완료**: `community.sql` 하단 Phase 9(`reviews`·`review_stats` 뷰·`on_review_change`·`posts.item_type/item_slug`·`reports`에 'review' 추가·`on_report_insert` review 분기) 적용됨(verify-phase9 8/8). ⚠️ **`createPost`가 `posts.item_*`를 insert**하므로 미적용 시 글쓰기가 깨진다(도감 조회는 graceful degrade). 에디터가 옛 파일을 캐시할 수 있으니 적용 시 **현재 community.sql 전체(약 900줄)** 기준으로 복사할 것.
 
 ## 아키텍처 핵심 (코드만 봐선 모르는 결정)
 - **카테고리는 DB-driven** (`categories` 테이블, 현재 10종: 공지·자유·질문·자랑·키보드·키축·키캡·커스텀·후기·정보). 행을 추가/수정하면 **코드 변경 없이** 탭·SNB·작성 폼에 자동 반영. 공지(`notice`)는 `admin_only`.
@@ -53,6 +56,7 @@
 - **북마크(Phase 6)**: `post_bookmarks`(비공개) — **트리거·카운터·활동점수 없음**. 좋아요 토글과 동일 구조의 `toggleBookmark`/`isBookmarked`/`getBookmarkedPosts`.
 - **운영자 등급 표시 (Phase 7)**: `AuthorBadge`에서 **role 있으면 역할 칩(운영자/운영진)만, 없으면 활동등급**. → admin/moderator는 새싹/일반 대신 역할이 등급으로 보임. 모든 운영 계정에 자동 적용(목록·상세·댓글·프로필).
 - **알림 Realtime (Phase 7)**: `BellMenu`(client)가 본인 `notifications` INSERT 구독 → `router.refresh()`(헤더=루트 레이아웃 재요청). **함정 ①** RLS 걸린 `postgres_changes`는 `realtime.setAuth(토큰)` **후 subscribe**해야 수신(getSession→setAuth→subscribe 순서). **함정 ②** "모두 읽음"을 `<form action>`+낙관적 `unread=0`으로 하면 `{unread>0 && <form>}`가 폼을 언마운트해 **액션 취소** → `startTransition(()=>markAllNotificationsRead())`로 직접 호출. 안전망: 종 열 때·창 focus 시 `router.refresh()`. mark 액션은 `revalidatePath("/","layout")`.
+- **도감 리뷰 (Phase 9)**: 도감 항목은 **정적 데이터(slug)**라 DB FK 없음 → `reviews(item_type, item_slug)` 문자열 참조, 유효성은 `src/data/items.ts`의 `getItemMeta`로 앱에서 검증. **하이브리드**: 가벼운 **다축 별점+한줄**은 `reviews` 테이블, **심층 후기**는 커뮤니티 글에 `posts.item_type/item_slug` 태깅. **다축은 타입별 맞춤**(switch 키감/소리/가성비·keycap 타건감/색감·마감/가성비·keyboard 빌드/소리/가성비) — 라벨은 `REVIEW_AXES`(items.ts) 단일 출처, DB는 `axis1/2/3` 숫자만(순서 변경 시 마이그레이션 주의). 카드 배지·평점순·상세 요약은 **`review_stats` 뷰**(종합=3축 평균, is_hidden 제외, `security_invoker`). 운영은 **커뮤니티 재사용**: `requireWriteAccess`(정지 차단)·신고(`reports.target_type='review'` + `on_report_insert` review 분기로 5명 자동숨김)·검토큐·벌점·활동점수(+2). 리뷰 조회 함수는 **에러 시 빈 값 반환**이라 SQL 미적용 시 도감 페이지는 crash 없이 degrade. **단 글 작성(createPost)은 `posts.item_*` 컬럼에 의존** → Phase 9 SQL 없이 배포하면 글쓰기가 깨짐(코드+SQL 동시 배포 필수).
 - **벌점제 (Phase 8)**: 자동숨김(콘텐츠)과 분리된 **작성자 누적 제재**. 신고 자동숨김 패턴(`on_report_insert`)을 복제 — 운영자 액션 `penalizeAuthor`는 `penalties`에 INSERT만, **SECURITY DEFINER 트리거 `on_penalty_insert`**가 누적·제재·`'penalty'` 알림 처리. **누적은 `profiles.penalty_points`에 증분 가산(sum 재계산 아님)** → admin `adminSetSanction`이 점수를 0으로 내리는 '해제'가 이후 부과에도 유지됨. 임계값: 3 경고 / 5 → 7일 / 8 → 30일 / 10 → 영구(`is_banned`). 정지기간은 `greatest`로 **에스컬레이트 전용**(단축 안 함). 콘텐츠당 1회(`penalties unique(target_type,target_id)`). **쓰기 차단**은 `requireWriteAccess()`(=requireProfile + `isSanctioned` 체크 → `/community/me` redirect)로, 글/댓글/좋아요/신고 액션에만 적용(삭제·북마크는 허용, 읽기는 requireProfile 유지). ⚠️ **임계값/심각도(+1/+2/+3)는 SQL 트리거와 `types.ts`의 `PENALTY_THRESHOLDS`/`PENALTY_SEVERITIES` 양쪽에 있어 변경 시 동기화 필요.**
 
 ## 파일 지도
@@ -62,7 +66,8 @@
 - **lib** `src/lib/community/*`: `queries.ts`(server-only 조회 — getModerationQueue에 작성자 벌점 노출, **getMyPenalties·getSanctionedUsers**), `types.ts`(도메인 타입·LEVELS·REPORT_REASONS·알림 타입·**PENALTY_THRESHOLDS/SEVERITIES**), `format.ts`(formatDate·notificationText), `notifications.ts`, `limits.ts`
 - **가드** `src/lib/auth/guards.ts`: requireUser/requireProfile/requireStaff/requireAdmin/**requireWriteAccess**(제재 차단)·**isSanctioned**
 - **SQL** `docs/sql/community.sql` (Phase별 섹션, 멱등) — 적용 주체는 사용자
-- **검증 스크립트** `scripts/`: `check-community-schema.mjs`, `verify-phase2~5.mjs`, **`verify-phase8.mjs`**, `set-role.mjs`, `diag-user.mjs`, `delete-user.mjs`
+- **도감 리뷰(Phase 9)** `src/data/items.ts`(getItemMeta·allItemOptions·parseItemRef·REVIEW_AXES), `src/lib/community/reviews.ts`(getReviewsForItem·getReviewStats·getReviewStatsBulk·getMyReview·getRelatedPosts), `src/components/reviews/*`(StarRating·RatingBadge·ReviewForm·ReviewList·ReviewSection). 도감 상세 3곳에 `<ReviewSection>`, 목록 3곳 page→Explorer `statsBySlug` prop + Card `RatingBadge` + 정렬 드롭다운, `PostForm` 아이템 태깅.
+- **검증 스크립트** `scripts/`: `check-community-schema.mjs`, `verify-phase2~5.mjs`, **`verify-phase8.mjs`**, **`verify-phase9.mjs`**, `set-role.mjs`, `diag-user.mjs`, `delete-user.mjs`
 
 ## 검증 명령 (라이브 Supabase, 모두 self-clean)
 ```bash
@@ -72,6 +77,7 @@ node scripts/verify-phase3.mjs            # 신고·자동숨김·검토큐
 node scripts/verify-phase4.mjs            # 인앱 알림·자기알림 방지·자동잠금
 node scripts/verify-phase5.mjs            # 댓글 좋아요·점수·알림
 node scripts/verify-phase8.mjs            # 벌점 누적·제재 에스컬레이션·중복차단·알림
+node scripts/verify-phase9.mjs            # 도감 리뷰 집계·중복·범위·자동숨김·활동점수
 npm run build                             # 컴파일(마크다운 RSC 포함)
 ```
 > 셸 주의: 이 환경의 PowerShell 파이프(`Select-Object`)에서 도구 결과 전달이 깨진 사례가 있어 **Bash 도구**로 실행하는 게 안전.
@@ -79,6 +85,8 @@ npm run build                             # 컴파일(마크다운 RSC 포함)
 ### 최근 검증 결과 (2026-06-12)
 - check-community-schema: **14/14 ✅** (post_bookmarks 포함, 10 카테고리 시드 확인)
 - verify-phase2: **8/8 ✅** · phase3: **5/5 ✅** · phase4: **10/10 ✅** · phase5: **7/7 ✅** · **phase8: 8/8 ✅**(벌점 2/3/5→7일/8→30일/10→영구·알림 5건·중복차단·범위 check)
+- **phase9: 8/8 ✅**(다축 집계 종합 4.00·활동점수+2·1인1아이템 unique·별점 1~5 check·2건 종합 2.5·신고 5명 자동숨김·locked 알림·숨김 집계 제외)
+- **Playwright E2E `e2e/10-reviews.spec.ts`: 2/2 ✅**(축 상세 다축 별점 작성→평균/목록 반영·재작성=upsert 수정, 글쓰기 아이템 태깅→도감 상세 '관련 후기 글' 노출. webpack 첫 컴파일 flaky→retry 통과)
 - `npm run build`: **green** (190 페이지, exit 0)
 - **Playwright E2E `e2e/04-community.spec.ts`: 9/9 ✅** (태그 1건 webpack 첫 컴파일로 flaky→retry 통과) — 글 작성→상세, 댓글, 좋아요 토글, 마크다운+XSS(브라우저에서 `window.__xss` 미정의·`<script>` DOM 미주입·`javascript:` 링크 0개 확인), 마이페이지 내 글, **북마크 토글→저장 탭, 상세 태그 클릭→필터, 공개 프로필+활동요약**, 비로그인 글쓰기→/login. 실행: `npx playwright test e2e/04-community.spec.ts`(dev 서버 webpack 자동 기동, 긴 명령은 로그파일+백그라운드 권장).
 - **Playwright E2E `e2e/05-penalty.spec.ts`: 5/5 ✅**(Phase 8 정지 게이트) — `suspended_until` **미래 → 글쓰기 차단(/community/me + "활동정지 중" 배너)**, **과거(만료) → 글쓰기 폼 정상(해제)**, **is_banned → 차단 + "영구 이용정지" 배너**, **정지 중 댓글 제출 → 액션 가드가 /community/me로 차단**, 제재 없음 → 정상(회귀). 제재 상태는 `setSanction`(service_role)로 직접 세팅해 기간 경계 시뮬레이션. ⚠️ dev 서버가 떠 있을 때 페이지 가드 수정이 **HMR 미반영**으로 stale할 수 있음 → 재실행 전 dev 서버 재시작 권장.

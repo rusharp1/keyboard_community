@@ -10,7 +10,7 @@ export default function ReportButton({
   targetId,
   className = "",
 }: {
-  targetType: "post" | "comment";
+  targetType: "post" | "comment" | "review";
   targetId: string;
   className?: string;
 }) {

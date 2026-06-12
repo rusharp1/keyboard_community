@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { getItemMeta } from "@/data/items";
 import type {
   AdminProfile,
   Category,
@@ -17,7 +18,7 @@ import type {
 // posts/comments ↔ profiles 관계를 모호하다고 보고 임베드를 거부한다.
 const AUTHOR = "author:profiles!user_id(nickname, activity_score, role)";
 const LIST_COLS = `id, category_id, title, tags, images, view_count, like_count, comment_count, pinned, created_at, ${AUTHOR}`;
-const POST_COLS = `id, user_id, category_id, title, body, tags, images, view_count, like_count, comment_count, pinned, is_hidden, created_at, updated_at, ${AUTHOR}`;
+const POST_COLS = `id, user_id, category_id, title, body, tags, images, view_count, like_count, comment_count, pinned, is_hidden, item_type, item_slug, created_at, updated_at, ${AUTHOR}`;
 
 export async function getCategories(): Promise<Category[]> {
   const supabase = await createClient();
@@ -149,8 +150,9 @@ export async function getModerationQueue(): Promise<ModerationItem[]> {
     .eq("status", "open")
     .order("created_at", { ascending: false });
 
+  type TT = "post" | "comment" | "review";
   const rows = (reports ?? []) as {
-    target_type: "post" | "comment";
+    target_type: TT;
     target_id: string;
     reason: ReportReason;
   }[];
@@ -159,7 +161,7 @@ export async function getModerationQueue(): Promise<ModerationItem[]> {
   // 대상별 집계(신고 수 = 행 수, 사유 중복제거).
   const groups = new Map<
     string,
-    { type: "post" | "comment"; id: string; count: number; reasons: Set<ReportReason> }
+    { type: TT; id: string; count: number; reasons: Set<ReportReason> }
   >();
   for (const r of rows) {
     const key = `${r.target_type}:${r.target_id}`;
@@ -174,12 +176,13 @@ export async function getModerationQueue(): Promise<ModerationItem[]> {
     groups.set(key, g);
   }
 
-  const postIds = [...groups.values()].filter((g) => g.type === "post").map((g) => g.id);
-  const commentIds = [...groups.values()]
-    .filter((g) => g.type === "comment")
-    .map((g) => g.id);
+  const idsByType = (t: TT) =>
+    [...groups.values()].filter((g) => g.type === t).map((g) => g.id);
+  const postIds = idsByType("post");
+  const commentIds = idsByType("comment");
+  const reviewIds = idsByType("review");
 
-  const [postsRes, commentsRes] = await Promise.all([
+  const [postsRes, commentsRes, reviewsRes] = await Promise.all([
     postIds.length
       ? supabase.from("posts").select("id, title, is_hidden, user_id").in("id", postIds)
       : Promise.resolve({
@@ -199,16 +202,33 @@ export async function getModerationQueue(): Promise<ModerationItem[]> {
             user_id: string;
           }[],
         }),
+    reviewIds.length
+      ? supabase
+          .from("reviews")
+          .select("id, body, is_hidden, item_type, item_slug, user_id")
+          .in("id", reviewIds)
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            body: string | null;
+            is_hidden: boolean;
+            item_type: string;
+            item_slug: string;
+            user_id: string;
+          }[],
+        }),
   ]);
 
   const postMap = new Map((postsRes.data ?? []).map((p) => [p.id, p]));
   const commentMap = new Map((commentsRes.data ?? []).map((c) => [c.id, c]));
+  const reviewMap = new Map((reviewsRes.data ?? []).map((r) => [r.id, r]));
 
   // 대상 작성자(벌점 부과 대상)의 현재 누적 벌점 + 이 콘텐츠로 이미 부과됐는지.
   const authorIds = [
     ...new Set([
       ...(postsRes.data ?? []).map((p) => p.user_id),
       ...(commentsRes.data ?? []).map((c) => c.user_id),
+      ...(reviewsRes.data ?? []).map((r) => r.user_id),
     ]),
   ];
   const allTargetIds = [...groups.values()].map((g) => g.id);
@@ -235,7 +255,11 @@ export async function getModerationQueue(): Promise<ModerationItem[]> {
 
   return [...groups.values()].map((g) => {
     const authorId =
-      g.type === "post" ? postMap.get(g.id)?.user_id : commentMap.get(g.id)?.user_id;
+      g.type === "post"
+        ? postMap.get(g.id)?.user_id
+        : g.type === "comment"
+          ? commentMap.get(g.id)?.user_id
+          : reviewMap.get(g.id)?.user_id;
     const author = authorId ? authorMap.get(authorId) : undefined;
     const common = {
       report_count: g.count,
@@ -257,15 +281,32 @@ export async function getModerationQueue(): Promise<ModerationItem[]> {
         missing: !p,
       };
     }
-    const c = commentMap.get(g.id);
+    if (g.type === "comment") {
+      const c = commentMap.get(g.id);
+      return {
+        ...common,
+        target_type: "comment" as const,
+        target_id: g.id,
+        is_hidden: c?.is_hidden ?? false,
+        preview: c ? c.body.slice(0, 80) : "(삭제된 댓글)",
+        post_id: c?.post_id ?? "",
+        missing: !c,
+      };
+    }
+    // review — 도감 항목 리뷰. 커뮤니티 글 링크는 없음(post_id="").
+    const rv = reviewMap.get(g.id);
+    const meta = rv ? getItemMeta(rv.item_type, rv.item_slug) : null;
+    const preview = rv
+      ? rv.body?.slice(0, 80) || `[${meta?.nameKo ?? rv.item_slug}] 리뷰`
+      : "(삭제된 리뷰)";
     return {
       ...common,
-      target_type: "comment" as const,
+      target_type: "review" as const,
       target_id: g.id,
-      is_hidden: c?.is_hidden ?? false,
-      preview: c ? c.body.slice(0, 80) : "(삭제된 댓글)",
-      post_id: c?.post_id ?? "",
-      missing: !c,
+      is_hidden: rv?.is_hidden ?? false,
+      preview,
+      post_id: "",
+      missing: !rv,
     };
   });
 }

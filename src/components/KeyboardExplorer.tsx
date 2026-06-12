@@ -14,8 +14,13 @@ import {
 } from "@/data/keyboards";
 import KeyboardCard from "./KeyboardCard";
 import SearchableSelect from "./SearchableSelect";
+import type { ReviewStats } from "@/lib/community/types";
 
-export default function KeyboardExplorer() {
+export default function KeyboardExplorer({
+  statsBySlug = {},
+}: {
+  statsBySlug?: Record<string, ReviewStats>;
+}) {
   const [query, setQuery] = useState("");
   const [brand, setBrand] = useState("all");
   const [layout, setLayout] = useState("all");
@@ -25,6 +30,7 @@ export default function KeyboardExplorer() {
   const [material, setMaterial] = useState("all");
   const [switchSlug, setSwitchSlug] = useState("all");
   const [hotswapOnly, setHotswapOnly] = useState(false);
+  const [sort, setSort] = useState<"default" | "rating">("default");
 
   const brands = useMemo(() => getKbBrands(), []);
   const layouts = useMemo(() => getLayouts(), []);
@@ -50,7 +56,7 @@ export default function KeyboardExplorer() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return keyboards.filter((k) => {
+    const list = keyboards.filter((k) => {
       if (brand !== "all" && k.brand !== brand) return false;
       if (layout !== "all" && k.layout !== layout) return false;
       if (connection !== "all" && !k.connections.includes(connection)) return false;
@@ -75,6 +81,13 @@ export default function KeyboardExplorer() {
         k.colors.some((c) => c.name.toLowerCase().includes(q))
       );
     });
+    if (sort === "rating") {
+      return [...list].sort(
+        (a, b) =>
+          (statsBySlug[b.slug]?.overall ?? -1) - (statsBySlug[a.slug]?.overall ?? -1),
+      );
+    }
+    return list;
   }, [
     query,
     brand,
@@ -85,6 +98,8 @@ export default function KeyboardExplorer() {
     colorFam,
     switchSlug,
     hotswapOnly,
+    sort,
+    statsBySlug,
   ]);
 
   return (
@@ -161,6 +176,15 @@ export default function KeyboardExplorer() {
         >
           핫스왑만
         </button>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as "default" | "rating")}
+          aria-label="정렬"
+          className="ml-auto rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm text-muted outline-none focus:border-accent"
+        >
+          <option value="default">기본순</option>
+          <option value="rating">평점순</option>
+        </select>
       </div>
 
       {/* 결과 */}
@@ -171,7 +195,7 @@ export default function KeyboardExplorer() {
       ) : (
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((kb) => (
-            <KeyboardCard key={kb.slug} kb={kb} />
+            <KeyboardCard key={kb.slug} kb={kb} rating={statsBySlug[kb.slug]} />
           ))}
         </div>
       )}

@@ -44,6 +44,10 @@ export default async function EditPostPage({
           body: post.body,
           tags: post.tags,
           images: post.images,
+          item:
+            post.item_type && post.item_slug
+              ? `${post.item_type}:${post.item_slug}`
+              : "",
         }}
       />
     </div>

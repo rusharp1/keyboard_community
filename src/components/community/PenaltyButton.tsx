@@ -10,7 +10,7 @@ export default function PenaltyButton({
   authorNickname,
   alreadyPenalized,
 }: {
-  targetType: "post" | "comment";
+  targetType: "post" | "comment" | "review";
   targetId: string;
   authorNickname: string | null;
   alreadyPenalized: boolean;

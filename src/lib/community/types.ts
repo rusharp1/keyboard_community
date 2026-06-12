@@ -1,5 +1,7 @@
 // 커뮤니티 도메인 타입 + 활동등급(표시 전용) 계산.
 
+import type { ItemType } from "@/data/items";
+
 export type Category = {
   id: number;
   slug: string;
@@ -33,6 +35,8 @@ export type Post = PostListItem & {
   body: string;
   is_hidden: boolean;
   updated_at: string;
+  item_type: ItemType | null; // 태깅된 도감 항목(있으면)
+  item_slug: string | null;
 };
 
 export type Comment = {
@@ -118,8 +122,32 @@ export const PENALTY_THRESHOLDS = {
   ban: 10, // 영구 이용정지
 } as const;
 
+// ── 도감 리뷰(Phase 9) ──
+export type Review = {
+  id: string;
+  user_id: string;
+  item_type: ItemType;
+  item_slug: string;
+  axis1: number;
+  axis2: number;
+  axis3: number;
+  body: string | null;
+  is_hidden: boolean;
+  created_at: string;
+  author: Author | null;
+};
+
+// review_stats 뷰 결과(종합 평균·리뷰수). overall = avg_overall.
+export type ReviewStats = {
+  n: number;
+  avg1: number;
+  avg2: number;
+  avg3: number;
+  overall: number;
+};
+
 export type ModerationItem = {
-  target_type: "post" | "comment";
+  target_type: "post" | "comment" | "review";
   target_id: string;
   report_count: number;
   reasons: ReportReason[];

@@ -11,6 +11,7 @@ import {
 } from "@/data/switches";
 import SwitchCard from "./SwitchCard";
 import SearchableSelect from "./SearchableSelect";
+import type { ReviewStats } from "@/lib/community/types";
 
 const types = Object.keys(SWITCH_TYPE_META) as SwitchType[];
 
@@ -18,22 +19,25 @@ export default function SwitchExplorer({
   initialType,
   initialSilent = false,
   initialMagnetic = false,
+  statsBySlug = {},
 }: {
   initialType?: SwitchType;
   initialSilent?: boolean;
   initialMagnetic?: boolean;
+  statsBySlug?: Record<string, ReviewStats>;
 }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState<SwitchType | "all">(initialType ?? "all");
   const [silentOnly, setSilentOnly] = useState(initialSilent);
   const [magneticOnly, setMagneticOnly] = useState(initialMagnetic);
   const [brand, setBrand] = useState<string>("all");
+  const [sort, setSort] = useState<"default" | "rating">("default");
 
   const brands = useMemo(() => getBrands(), []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return switches.filter((s) => {
+    const list = switches.filter((s) => {
       if (type !== "all" && s.type !== type) return false;
       if (silentOnly && !s.silent) return false;
       if (magneticOnly && !s.magnetic) return false;
@@ -46,7 +50,15 @@ export default function SwitchExplorer({
         (s.color?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [query, type, silentOnly, magneticOnly, brand]);
+    if (sort === "rating") {
+      // 평점순: 종합 평점 desc, 리뷰 없는 항목은 뒤로.
+      return [...list].sort(
+        (a, b) =>
+          (statsBySlug[b.slug]?.overall ?? -1) - (statsBySlug[a.slug]?.overall ?? -1),
+      );
+    }
+    return list;
+  }, [query, type, silentOnly, magneticOnly, brand, sort, statsBySlug]);
 
   return (
     <div>
@@ -92,8 +104,17 @@ export default function SwitchExplorer({
           자석축
         </FilterChip>
 
-        {/* 제조사 필터 (검색 가능) */}
-        <div className="ml-auto">
+        {/* 정렬 + 제조사 필터 */}
+        <div className="ml-auto flex items-center gap-2">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as "default" | "rating")}
+            aria-label="정렬"
+            className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm text-muted outline-none focus:border-accent"
+          >
+            <option value="default">기본순</option>
+            <option value="rating">평점순</option>
+          </select>
           <SearchableSelect
             value={brand}
             onChange={setBrand}
@@ -115,7 +136,7 @@ export default function SwitchExplorer({
       ) : (
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((sw) => (
-            <SwitchCard key={sw.slug} sw={sw} />
+            <SwitchCard key={sw.slug} sw={sw} rating={statsBySlug[sw.slug]} />
           ))}
         </div>
       )}

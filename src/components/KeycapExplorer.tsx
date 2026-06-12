@@ -9,12 +9,18 @@ import {
 } from "@/data/keycaps";
 import KeycapCard from "./KeycapCard";
 import SearchableSelect from "./SearchableSelect";
+import type { ReviewStats } from "@/lib/community/types";
 
-export default function KeycapExplorer() {
+export default function KeycapExplorer({
+  statsBySlug = {},
+}: {
+  statsBySlug?: Record<string, ReviewStats>;
+}) {
   const [query, setQuery] = useState("");
   const [maker, setMaker] = useState<string>("all");
   const [profile, setProfile] = useState<string>("all");
   const [material, setMaterial] = useState<string>("all");
+  const [sort, setSort] = useState<"default" | "rating">("default");
 
   const makers = useMemo(() => getMakers(), []);
   const profiles = useMemo(() => getProfiles(), []);
@@ -22,7 +28,7 @@ export default function KeycapExplorer() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return keycaps.filter((k) => {
+    const list = keycaps.filter((k) => {
       if (maker !== "all" && k.maker !== maker) return false;
       if (profile !== "all" && k.profile !== profile) return false;
       if (material !== "all" && k.material !== material) return false;
@@ -34,7 +40,14 @@ export default function KeycapExplorer() {
         (k.maker?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [query, maker, profile, material]);
+    if (sort === "rating") {
+      return [...list].sort(
+        (a, b) =>
+          (statsBySlug[b.slug]?.overall ?? -1) - (statsBySlug[a.slug]?.overall ?? -1),
+      );
+    }
+    return list;
+  }, [query, maker, profile, material, sort, statsBySlug]);
 
   return (
     <div>
@@ -76,6 +89,15 @@ export default function KeycapExplorer() {
             searchPlaceholder="재질 검색..."
           />
         )}
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as "default" | "rating")}
+          aria-label="정렬"
+          className="ml-auto rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm text-muted outline-none focus:border-accent"
+        >
+          <option value="default">기본순</option>
+          <option value="rating">평점순</option>
+        </select>
       </div>
 
       {/* 결과 */}
@@ -86,7 +108,7 @@ export default function KeycapExplorer() {
       ) : (
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((kc) => (
-            <KeycapCard key={kc.slug} kc={kc} />
+            <KeycapCard key={kc.slug} kc={kc} rating={statsBySlug[kc.slug]} />
           ))}
         </div>
       )}

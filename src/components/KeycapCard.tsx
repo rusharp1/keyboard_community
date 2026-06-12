@@ -1,7 +1,15 @@
 import Link from "next/link";
 import { type Keycap } from "@/data/keycaps";
+import RatingBadge from "./reviews/RatingBadge";
+import type { ReviewStats } from "@/lib/community/types";
 
-export default function KeycapCard({ kc }: { kc: Keycap }) {
+export default function KeycapCard({
+  kc,
+  rating,
+}: {
+  kc: Keycap;
+  rating?: ReviewStats;
+}) {
   return (
     <Link
       href={`/keycaps/${kc.slug}`}
@@ -23,11 +31,14 @@ export default function KeycapCard({ kc }: { kc: Keycap }) {
           <div className="font-semibold leading-tight">{kc.nameKo}</div>
           {kc.nameEn && <div className="text-xs text-muted">{kc.nameEn}</div>}
         </div>
-        {kc.maker && (
-          <span className="shrink-0 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-xs text-muted">
-            {kc.maker}
-          </span>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          <RatingBadge stats={rating} />
+          {kc.maker && (
+            <span className="rounded-full border border-border bg-surface-2 px-2 py-0.5 text-xs text-muted">
+              {kc.maker}
+            </span>
+          )}
+        </div>
       </div>
 
       {(kc.profile || kc.material) && (

@@ -8,6 +8,7 @@ import {
   instagramTagUrl,
 } from "@/data/keycaps";
 import Palette from "@/components/Palette";
+import ReviewSection from "@/components/reviews/ReviewSection";
 
 export function generateStaticParams() {
   return getAllKeycapSlugs().map((slug) => ({ slug }));
@@ -158,6 +159,8 @@ export default async function KeycapDetail({
           색)를 알려주시면 더 정확히 채워 넣을게요.
         </p>
       )}
+
+      <ReviewSection itemType="keycap" slug={kc.slug} />
     </div>
   );
 }

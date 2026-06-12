@@ -10,6 +10,7 @@ import {
   SWITCH_TYPE_META,
 } from "@/data/switches";
 import TypeBadge, { SilentBadge, MagneticBadge } from "@/components/TypeBadge";
+import ReviewSection from "@/components/reviews/ReviewSection";
 
 export function generateStaticParams() {
   return getAllSlugs().map((slug) => ({ slug }));
@@ -213,6 +214,8 @@ export default async function SwitchDetail({
       <p className="mt-6 text-xs text-muted">
         ※ 타건음은 키캡·보강판·기판 등 환경에 따라 크게 달라질 수 있습니다.
       </p>
+
+      <ReviewSection itemType="switch" slug={sw.slug} />
     </div>
   );
 }

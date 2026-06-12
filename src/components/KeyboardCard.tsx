@@ -1,7 +1,15 @@
 import Link from "next/link";
 import { type Keyboard } from "@/data/keyboards";
+import RatingBadge from "./reviews/RatingBadge";
+import type { ReviewStats } from "@/lib/community/types";
 
-export default function KeyboardCard({ kb }: { kb: Keyboard }) {
+export default function KeyboardCard({
+  kb,
+  rating,
+}: {
+  kb: Keyboard;
+  rating?: ReviewStats;
+}) {
   const chips = [
     kb.layout,
     kb.connections[0],
@@ -23,10 +31,11 @@ export default function KeyboardCard({ kb }: { kb: Keyboard }) {
           className="h-9 w-9 shrink-0 rounded-lg border border-border"
           style={{ backgroundColor: firstHex }}
         />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="font-semibold leading-tight">{kb.nameKo}</div>
           {kb.nameEn && <div className="text-xs text-muted">{kb.nameEn}</div>}
         </div>
+        <RatingBadge stats={rating} className="shrink-0" />
       </div>
 
       <div className="flex flex-wrap gap-1.5">

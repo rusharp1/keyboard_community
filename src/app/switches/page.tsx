@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import SwitchExplorer from "@/components/SwitchExplorer";
 import { SWITCH_TYPE_META, type SwitchType } from "@/data/switches";
+import { getReviewStatsBulk } from "@/lib/community/reviews";
 
 export const metadata: Metadata = {
   title: "축 도감 — 키보드 커뮤니티",
@@ -17,6 +18,7 @@ export default async function SwitchesPage({
     type && type in SWITCH_TYPE_META ? (type as SwitchType) : undefined;
   const initialSilent = silent === "1" || silent === "true";
   const initialMagnetic = magnetic === "1" || magnetic === "true";
+  const statsBySlug = await getReviewStatsBulk("switch");
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
@@ -30,6 +32,7 @@ export default async function SwitchesPage({
           initialType={initialType}
           initialSilent={initialSilent}
           initialMagnetic={initialMagnetic}
+          statsBySlug={statsBySlug}
         />
       </div>
     </div>

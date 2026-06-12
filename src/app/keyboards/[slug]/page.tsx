@@ -9,6 +9,7 @@ import {
   youtubeReviewUrl,
   instagramTagUrl,
 } from "@/data/keyboards";
+import ReviewSection from "@/components/reviews/ReviewSection";
 
 export function generateStaticParams() {
   return getAllKeyboardSlugs().map((slug) => ({ slug }));
@@ -220,6 +221,8 @@ export default async function KeyboardDetail({
       <p className="mt-6 text-xs text-muted">
         ※ 가격·스펙은 시점·판매처·리비전에 따라 달라질 수 있습니다.
       </p>
+
+      <ReviewSection itemType="keyboard" slug={kb.slug} />
     </div>
   );
 }

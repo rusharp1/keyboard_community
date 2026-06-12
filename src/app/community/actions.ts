@@ -14,6 +14,7 @@ import {
 } from "@/lib/auth/guards";
 import { BODY_MAX, COMMENT_MAX, TITLE_MAX } from "@/lib/community/limits";
 import { REPORT_REASONS, type ReportReason } from "@/lib/community/types";
+import { getItemMeta, parseItemRef } from "@/data/items";
 
 const MAX_IMAGES = 5;
 
@@ -80,6 +81,9 @@ export async function createPost(
     data: { user },
   } = await supabase.auth.getUser();
 
+  // 도감 아이템 태깅(선택). "type:slug" 형태가 유효할 때만 저장.
+  const item = parseItemRef(String(formData.get("item") ?? ""));
+
   const { data, error } = await supabase
     .from("posts")
     .insert({
@@ -89,6 +93,8 @@ export async function createPost(
       body: body.data,
       tags: parseTags(formData.get("tags")),
       images: parseImages(formData),
+      item_type: item?.type ?? null,
+      item_slug: item?.slug ?? null,
     })
     .select("id")
     .single();
@@ -118,6 +124,8 @@ export async function updatePost(
   if (!body.success) fieldErrors.body = body.error.issues[0].message;
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
+  const item = parseItemRef(String(formData.get("item") ?? ""));
+
   const { error } = await supabase
     .from("posts")
     .update({
@@ -125,6 +133,8 @@ export async function updatePost(
       body: body.data,
       tags: parseTags(formData.get("tags")),
       images: parseImages(formData),
+      item_type: item?.type ?? null,
+      item_slug: item?.slug ?? null,
     })
     .eq("id", id);
   if (error) return { error: error.message };
@@ -319,7 +329,10 @@ export async function reportTarget(
   const reason = String(formData.get("reason") ?? "");
   const detail = String(formData.get("detail") ?? "").trim().slice(0, 500);
 
-  if ((targetType !== "post" && targetType !== "comment") || !targetId)
+  if (
+    (targetType !== "post" && targetType !== "comment" && targetType !== "review") ||
+    !targetId
+  )
     return { error: "잘못된 요청입니다." };
   if (!REASON_VALUES.includes(reason))
     return { fieldErrors: { reason: "신고 사유를 선택하세요." } };
@@ -340,14 +353,55 @@ export async function reportTarget(
   return { ok: true };
 }
 
-// 운영진: 글/댓글 숨김 ↔ 복원. 복원 시 해당 대상의 신고를 처리완료로.
+// ───────────────────────── 도감 리뷰 (Phase 9) ─────────────────────────
+
+// 다축 별점 리뷰 작성/수정(1인 1아이템 = upsert). 별점 필수, 본문 선택.
+// 정지 유저는 requireWriteAccess가 차단. RLS insert는 본인만.
+export async function upsertReview(formData: FormData): Promise<void> {
+  const { supabase, user } = await requireWriteAccess();
+  const item = parseItemRef(String(formData.get("item") ?? ""));
+  if (!item) return;
+
+  const axis1 = Number(formData.get("axis1"));
+  const axis2 = Number(formData.get("axis2"));
+  const axis3 = Number(formData.get("axis3"));
+  const inRange = (n: number) => Number.isInteger(n) && n >= 1 && n <= 5;
+  if (!inRange(axis1) || !inRange(axis2) || !inRange(axis3)) return;
+  const body = String(formData.get("body") ?? "").trim().slice(0, 1000) || null;
+
+  await supabase.from("reviews").upsert(
+    { user_id: user.id, item_type: item.type, item_slug: item.slug, axis1, axis2, axis3, body },
+    { onConflict: "user_id,item_type,item_slug" },
+  );
+  revalidatePath(getItemMeta(item.type, item.slug)?.href ?? "/");
+}
+
+// 리뷰 삭제(본인/운영진 — RLS로 최종 방어). 정지 유저도 자기 리뷰 정리는 허용.
+export async function deleteReview(formData: FormData): Promise<void> {
+  const { supabase } = await requireProfile();
+  const id = String(formData.get("id") ?? "");
+  const item = parseItemRef(String(formData.get("item") ?? ""));
+  if (!id) return;
+  await supabase.from("reviews").delete().eq("id", id);
+  if (item) revalidatePath(getItemMeta(item.type, item.slug)?.href ?? "/");
+}
+
+// ───────────────────────── 모더레이션 (Phase 3) ─────────────────────────
+
+// 운영진: 글/댓글/리뷰 숨김 ↔ 복원. 복원 시 해당 대상의 신고를 처리완료로.
 export async function moderateHide(formData: FormData): Promise<void> {
   const { supabase } = await requireStaff();
   const targetType = String(formData.get("target_type") ?? "");
   const targetId = String(formData.get("target_id") ?? "");
   const hidden = formData.get("hidden") === "true";
   const table =
-    targetType === "post" ? "posts" : targetType === "comment" ? "comments" : null;
+    targetType === "post"
+      ? "posts"
+      : targetType === "comment"
+        ? "comments"
+        : targetType === "review"
+          ? "reviews"
+          : null;
   if (!table || !targetId) return;
 
   await supabase.from(table).update({ is_hidden: hidden }).eq("id", targetId);
@@ -367,7 +421,13 @@ export async function moderateDelete(formData: FormData): Promise<void> {
   const targetType = String(formData.get("target_type") ?? "");
   const targetId = String(formData.get("target_id") ?? "");
   const table =
-    targetType === "post" ? "posts" : targetType === "comment" ? "comments" : null;
+    targetType === "post"
+      ? "posts"
+      : targetType === "comment"
+        ? "comments"
+        : targetType === "review"
+          ? "reviews"
+          : null;
   if (!table || !targetId) return;
 
   await supabase.from(table).delete().eq("id", targetId);
@@ -411,10 +471,14 @@ export async function penalizeAuthor(formData: FormData): Promise<void> {
   const targetId = String(formData.get("target_id") ?? "");
   const points = Number(formData.get("points"));
   const memo = String(formData.get("memo") ?? "").trim().slice(0, 500) || null;
-  if ((targetType !== "post" && targetType !== "comment") || !targetId) return;
+  if (
+    (targetType !== "post" && targetType !== "comment" && targetType !== "review") ||
+    !targetId
+  )
+    return;
   if (![1, 2, 3].includes(points)) return;
 
-  // 대상 작성자 + 소속 글 조회(댓글이면 post_id 따로).
+  // 대상 작성자 + 소속 글 조회(댓글이면 post_id 따로, 리뷰는 글 없음).
   let authorId: string | null = null;
   let postId: string | null = null;
   if (targetType === "post") {
@@ -425,7 +489,7 @@ export async function penalizeAuthor(formData: FormData): Promise<void> {
       .maybeSingle();
     authorId = data?.user_id ?? null;
     postId = targetId;
-  } else {
+  } else if (targetType === "comment") {
     const { data } = await supabase
       .from("comments")
       .select("user_id, post_id")
@@ -433,6 +497,13 @@ export async function penalizeAuthor(formData: FormData): Promise<void> {
       .maybeSingle();
     authorId = data?.user_id ?? null;
     postId = data?.post_id ?? null;
+  } else {
+    const { data } = await supabase
+      .from("reviews")
+      .select("user_id")
+      .eq("id", targetId)
+      .maybeSingle();
+    authorId = data?.user_id ?? null;
   }
   if (!authorId) return;
 

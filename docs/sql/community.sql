@@ -743,3 +743,155 @@ begin
     add constraint notifications_type_check
     check (type in ('comment', 'reply', 'like', 'notice', 'locked', 'penalty'));
 end $$;
+
+-- =============================================================
+-- Phase 9 — 도감 연동 리뷰 / 다축 별점
+-- =============================================================
+-- 도감 항목(축·키캡·키보드)은 정적 데이터라 DB FK가 없다 → (item_type, item_slug) 문자열 참조.
+-- axis1/2/3의 의미는 앱(REVIEW_AXES[type])이 정의(예: switch=키감/소리/가성비). DB는 숫자만.
+-- 운영(신고·자동숨김·활동점수)은 커뮤니티와 동일 메커니즘을 재사용한다.
+
+-- 18) reviews 테이블 -------------------------------------------------
+create table if not exists public.reviews (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles (id) on delete cascade,
+  item_type  text not null check (item_type in ('switch', 'keycap', 'keyboard')),
+  item_slug  text not null,
+  axis1      int  not null check (axis1 between 1 and 5),
+  axis2      int  not null check (axis2 between 1 and 5),
+  axis3      int  not null check (axis3 between 1 and 5),
+  body       text,
+  is_hidden  boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (user_id, item_type, item_slug)
+);
+
+create index if not exists reviews_item_idx
+  on public.reviews (item_type, item_slug);
+
+alter table public.reviews enable row level security;
+
+drop policy if exists "reviews select all" on public.reviews;
+create policy "reviews select all"
+  on public.reviews for select using (true);
+
+drop policy if exists "reviews insert own" on public.reviews;
+create policy "reviews insert own"
+  on public.reviews for insert with check (auth.uid() = user_id);
+
+drop policy if exists "reviews update own or staff" on public.reviews;
+create policy "reviews update own or staff"
+  on public.reviews for update
+  using (auth.uid() = user_id or public.is_staff())
+  with check (auth.uid() = user_id or public.is_staff());
+
+drop policy if exists "reviews delete own or staff" on public.reviews;
+create policy "reviews delete own or staff"
+  on public.reviews for delete
+  using (auth.uid() = user_id or public.is_staff());
+
+-- 작성자 활동점수(리뷰 +2, 글 +3보다 낮게). upsert(UPDATE)는 점수 변화 없음.
+create or replace function public.on_review_change()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_op = 'INSERT' then
+    perform public.bump_score(new.user_id, 2);
+  elsif tg_op = 'DELETE' then
+    perform public.bump_score(old.user_id, -2);
+  end if;
+  return null;
+end;
+$$;
+
+drop trigger if exists reviews_after_change on public.reviews;
+create trigger reviews_after_change
+  after insert or delete on public.reviews
+  for each row execute function public.on_review_change();
+
+-- 19) posts 아이템 태깅(심층 후기 ↔ 도감 링크) ----------------------
+alter table public.posts
+  add column if not exists item_type text,
+  add column if not exists item_slug text;
+
+do $$ begin
+  alter table public.posts add constraint posts_item_type_check
+    check (item_type is null or item_type in ('switch', 'keycap', 'keyboard'));
+exception when duplicate_object then null; end $$;
+
+create index if not exists posts_item_idx
+  on public.posts (item_type, item_slug);
+
+-- 20) 신고 대상에 'review' 추가(멱등 — target_type check 제약 교체) -----
+do $$
+declare cname text;
+begin
+  select conname into cname from pg_constraint
+   where conrelid = 'public.reports'::regclass and contype = 'c'
+     and pg_get_constraintdef(oid) ilike '%target_type%';
+  if cname is not null then
+    execute format('alter table public.reports drop constraint %I', cname);
+  end if;
+  alter table public.reports add constraint reports_target_type_check
+    check (target_type in ('post', 'comment', 'review'));
+end $$;
+
+-- 신고 자동숨김 트리거에 review 분기 추가(reviews 정의 후 재정의 — Phase 3 버전 대체).
+create or replace function public.on_report_insert()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  cnt int;
+  author uuid;
+  c_post uuid;
+begin
+  select count(distinct reporter_id) into cnt
+  from public.reports
+  where target_type = new.target_type and target_id = new.target_id
+    and status = 'open';
+
+  if cnt >= 5 then
+    if new.target_type = 'post' then
+      update public.posts set is_hidden = true
+        where id = new.target_id and is_hidden = false
+        returning user_id into author;
+      if author is not null then
+        insert into public.notifications (user_id, type, post_id)
+        values (author, 'locked', new.target_id);
+      end if;
+    elsif new.target_type = 'comment' then
+      update public.comments set is_hidden = true
+        where id = new.target_id and is_hidden = false
+        returning user_id, post_id into author, c_post;
+      if author is not null then
+        insert into public.notifications (user_id, type, post_id, comment_id)
+        values (author, 'locked', c_post, new.target_id);
+      end if;
+    elsif new.target_type = 'review' then
+      update public.reviews set is_hidden = true
+        where id = new.target_id and is_hidden = false
+        returning user_id into author;
+      if author is not null then
+        insert into public.notifications (user_id, type)
+        values (author, 'locked');
+      end if;
+    end if;
+  end if;
+  return null;
+end;
+$$;
+
+-- 21) review_stats 뷰(종합 평균·리뷰수) — 카드 배지·평점순·상세 요약 공용 -----
+-- security_invoker로 호출자 RLS 적용(reviews select=공개). is_hidden 제외.
+create or replace view public.review_stats with (security_invoker = on) as
+  select
+    item_type,
+    item_slug,
+    count(*)::int as n,
+    round(avg(axis1)::numeric, 2) as avg1,
+    round(avg(axis2)::numeric, 2) as avg2,
+    round(avg(axis3)::numeric, 2) as avg3,
+    round(avg((axis1 + axis2 + axis3) / 3.0)::numeric, 2) as avg_overall
+  from public.reviews
+  where is_hidden = false
+  group by item_type, item_slug;
+
+grant select on public.review_stats to anon, authenticated;

@@ -1,8 +1,16 @@
 import Link from "next/link";
 import { type Keyswitch } from "@/data/switches";
 import TypeBadge, { SilentBadge, MagneticBadge } from "./TypeBadge";
+import RatingBadge from "./reviews/RatingBadge";
+import type { ReviewStats } from "@/lib/community/types";
 
-export default function SwitchCard({ sw }: { sw: Keyswitch }) {
+export default function SwitchCard({
+  sw,
+  rating,
+}: {
+  sw: Keyswitch;
+  rating?: ReviewStats;
+}) {
   const stats = [
     sw.actuationForce != null && `작동 ${sw.actuationForce}g`,
     sw.bottomOutForce != null && `바닥 ${sw.bottomOutForce}g`,
@@ -22,10 +30,11 @@ export default function SwitchCard({ sw }: { sw: Keyswitch }) {
             backgroundColor: sw.colorHex ?? "var(--surface-2)",
           }}
         />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="font-semibold leading-tight">{sw.nameKo}</div>
           {sw.nameEn && <div className="text-xs text-muted">{sw.nameEn}</div>}
         </div>
+        <RatingBadge stats={rating} className="shrink-0" />
       </div>
 
       <div className="flex flex-wrap gap-1.5">
