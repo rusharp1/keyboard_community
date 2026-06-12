@@ -64,6 +64,20 @@ export async function recoveryCallbackPath(email: string): Promise<string> {
   return `/auth/callback?token_hash=${token}&type=recovery&next=/auth/reset`;
 }
 
+// 제재 상태를 직접 세팅(트리거 우회) — 기간 기반 정지 게이트 검증용.
+// suspended_until을 미래/과거로 두어 만료 경계를 시뮬레이션한다.
+export async function setSanction(
+  userId: string,
+  fields: {
+    penalty_points?: number;
+    suspended_until?: string | null;
+    is_banned?: boolean;
+  },
+): Promise<void> {
+  const { error } = await admin().from("profiles").update(fields).eq("id", userId);
+  if (error) throw error;
+}
+
 export async function deleteUserByEmail(email: string): Promise<void> {
   const { data, error } = await admin().auth.admin.listUsers({
     page: 1,
