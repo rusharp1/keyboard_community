@@ -17,6 +17,11 @@ function admin() {
   });
 }
 
+// 직접 DB 조작이 필요한 시드/검증용(역할 부여·신고 주입·프로필 확인 등).
+export function serviceClient() {
+  return admin();
+}
+
 export async function createUser(
   email: string,
   nickname: string,
