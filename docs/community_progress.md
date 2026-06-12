@@ -59,7 +59,7 @@
 - **라우트** `src/app/community/*`: `page.tsx`(홈: SNB·목록·Best·검색·태그필터), `[id]/page.tsx`(상세), `[id]/edit/page.tsx`, `new/page.tsx`, `admin/page.tsx`(검토큐·역할), `settings/page.tsx`(알림설정), **`me/page.tsx`**(마이페이지: 글·댓글·좋아요·저장 탭+활동요약), **`u/[nickname]/page.tsx`**(공개 프로필)
 - **서버 액션** `src/app/community/actions.ts`: createPost/updatePost/deletePost, addComment/updateComment/deleteComment, toggleLike, toggleCommentLike, **toggleBookmark**, **togglePin**, recordView, reportTarget, moderateHide/moderateDelete, setRole, **penalizeAuthor**(운영진 벌점 부과)/**adminSetSanction**(admin 제재 해제), markNotificationRead/markAllNotificationsRead, updateNotificationPrefs
 - **컴포넌트** `src/components/community/*`: PostForm(쓰기/미리보기 탭), PostRow, CommentSection/CommentView/CommentForm/EditableCommentBody, LikeButton/CommentLikeButton/**BookmarkButton**, Markdown, **PostImages**(라이트박스), BellMenu(Realtime 구독), NotificationSettingsForm, CategorySidebar(모바일 좌측 드로어), ImageUploader, SearchBox(X→해제), ReportButton, AuthorBadge(운영자 등급), ReplyToggle, ConfirmSubmitButton, ViewTracker, **PenaltyButton**(검토큐 벌점 부과)/**SanctionBanner**(마이페이지 제재 안내) · 그리고 `src/components/MobileNav.tsx`(상단 모바일 햄버거)
-- **lib** `src/lib/community/*`: `queries.ts`(server-only 조회 — getModerationQueue에 작성자 벌점 노출, **getMyPenalties**), `types.ts`(도메인 타입·LEVELS·REPORT_REASONS·알림 타입·**PENALTY_THRESHOLDS/SEVERITIES**), `format.ts`(formatDate·notificationText), `notifications.ts`, `limits.ts`
+- **lib** `src/lib/community/*`: `queries.ts`(server-only 조회 — getModerationQueue에 작성자 벌점 노출, **getMyPenalties·getSanctionedUsers**), `types.ts`(도메인 타입·LEVELS·REPORT_REASONS·알림 타입·**PENALTY_THRESHOLDS/SEVERITIES**), `format.ts`(formatDate·notificationText), `notifications.ts`, `limits.ts`
 - **가드** `src/lib/auth/guards.ts`: requireUser/requireProfile/requireStaff/requireAdmin/**requireWriteAccess**(제재 차단)·**isSanctioned**
 - **SQL** `docs/sql/community.sql` (Phase별 섹션, 멱등) — 적용 주체는 사용자
 - **검증 스크립트** `scripts/`: `check-community-schema.mjs`, `verify-phase2~5.mjs`, **`verify-phase8.mjs`**, `set-role.mjs`, `diag-user.mjs`, `delete-user.mjs`
@@ -82,7 +82,7 @@ npm run build                             # 컴파일(마크다운 RSC 포함)
 - `npm run build`: **green** (190 페이지, exit 0)
 - **Playwright E2E `e2e/04-community.spec.ts`: 9/9 ✅** (태그 1건 webpack 첫 컴파일로 flaky→retry 통과) — 글 작성→상세, 댓글, 좋아요 토글, 마크다운+XSS(브라우저에서 `window.__xss` 미정의·`<script>` DOM 미주입·`javascript:` 링크 0개 확인), 마이페이지 내 글, **북마크 토글→저장 탭, 상세 태그 클릭→필터, 공개 프로필+활동요약**, 비로그인 글쓰기→/login. 실행: `npx playwright test e2e/04-community.spec.ts`(dev 서버 webpack 자동 기동, 긴 명령은 로그파일+백그라운드 권장).
 - **Playwright E2E `e2e/05-penalty.spec.ts`: 5/5 ✅**(Phase 8 정지 게이트) — `suspended_until` **미래 → 글쓰기 차단(/community/me + "활동정지 중" 배너)**, **과거(만료) → 글쓰기 폼 정상(해제)**, **is_banned → 차단 + "영구 이용정지" 배너**, **정지 중 댓글 제출 → 액션 가드가 /community/me로 차단**, 제재 없음 → 정상(회귀). 제재 상태는 `setSanction`(service_role)로 직접 세팅해 기간 경계 시뮬레이션. ⚠️ dev 서버가 떠 있을 때 페이지 가드 수정이 **HMR 미반영**으로 stale할 수 있음 → 재실행 전 dev 서버 재시작 권장.
-- **Playwright E2E `e2e/06-penalty-admin.spec.ts`: 1/1 ✅**(Phase 8 운영자 부과 2계정) — service_role로 신고 5건 자동숨김 시드 → **admin 로그인→`/community/admin` 검토큐→심각도 선택+벌점 부과** → (a)같은 콘텐츠 **"벌점 부과됨" 중복 차단**, (b)DB 작성자 누적 +2·`'penalty'` 알림 1건, (c)작성자 2번째 컨텍스트에서 **종 "안 읽음" 배지 + /community/me "누적 벌점 +2점" 배너**. confirm 다이얼로그는 `page.on("dialog",accept)`.
+- **Playwright E2E `e2e/06-penalty-admin.spec.ts`: 2/2 ✅**(Phase 8 운영자 부과/해제 2계정) — service_role로 신고 5건 자동숨김 시드 → **admin 로그인→`/community/admin` 검토큐→심각도 선택+벌점 부과** → (a)같은 콘텐츠 **"벌점 부과됨" 중복 차단**, (b)DB 작성자 누적 +2·`'penalty'` 알림 1건, (c)작성자 2번째 컨텍스트에서 **종 "안 읽음" 배지 + /community/me "누적 벌점 +2점" 배너**. ② **제재 관리** 섹션(admin 전용)에서 영구정지 회원 **"제재 해제"→is_banned=false·벌점 0**. confirm 다이얼로그는 `page.on("dialog",accept)`.
 
 ### 자동화로 커버됨(재확인 불필요)
 글 작성·상세, 댓글 작성, 좋아요 토글, 마크다운 렌더 & XSS 무력화, 마이페이지 "내 글", 북마크 토글, 태그 필터, 공개 프로필, 비로그인 글쓰기 가드 → `04`가 검증. **벌점 기간 기반 정지/영구정지/만료 해제 게이트(글쓰기·댓글) → `05`가 검증. 운영자 벌점 부과 UI→누적·중복차단·알림·배너(2계정) → `06`이 검증.**
@@ -107,7 +107,7 @@ npm run build                             # 컴파일(마크다운 RSC 포함)
 - [ ] **신고·모더레이션**: 서로 다른 5명 신고 → 자동숨김·목록에서 사라짐, `/community/admin` 검토큐 복원/삭제, moderator 승격(`scripts/set-role.mjs`로 첫 admin)
 - [ ] **관리자 글 고정(pin)**: staff 계정으로 상세에서 "고정" → 목록 상단 고정 / "고정 해제"
 - [ ] **권한**: 일반유저 글쓰기 폼에 "공지" 카테고리 안 보임, 공지 작성은 운영진만, 남의 글/댓글 수정·삭제 불가
-- [x] **벌점제(Phase 8) — 운영자 부과 UI**: e2e `06`이 2계정으로 검증(부과→누적·중복차단·종 배지·/me 배너). 데이터=verify-phase8, 정지 게이트=e2e `05`. **남은 수동**: ① 벌점 알림이 **새로고침 없이 실시간**으로 종에 뜨는지(Phase 7 Realtime 항목과 동일) ② **admin 제재 해제**(`adminSetSanction`) 후 다시 쓰기 가능 — 현재 UI 버튼 미연결(액션만 존재), 필요 시 운영 화면에 노출.
+- [x] **벌점제(Phase 8) — 운영자 부과/해제 UI**: e2e `06`이 2계정으로 검증(부과→누적·중복차단·종 배지·/me 배너 + admin **제재 관리** 섹션에서 영구정지 **해제→차단 풀림**). 데이터=verify-phase8, 정지 게이트=e2e `05`. **남은 수동**: 벌점 알림이 **새로고침 없이 실시간**으로 종에 뜨는지(Phase 7 Realtime 항목과 동일)뿐.
 
 **Phase 7 — 라이브(Vercel) 점검 대기 (배포됨, 사용자 확인 필요)**
 - [ ] **모바일 카테고리**: 좌측 슬라이드 드로어(오버레이·ESC·바깥클릭 닫기·스크롤락)

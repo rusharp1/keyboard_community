@@ -128,3 +128,35 @@ test("운영자가 검토큐에서 벌점 부과 → 작성자 누적·중복차
   await expect(vp.getByText(/\+2점/)).toBeVisible();
   await ctx.close();
 });
+
+test("admin이 제재 관리에서 영구정지 해제 → 차단 풀림", async ({ page }) => {
+  // 작성자를 영구정지 상태로 세팅(제재 관리 목록 진입 조건).
+  await db
+    .from("profiles")
+    .update({ penalty_points: 10, is_banned: true, suspended_until: null })
+    .eq("id", victimUser.id);
+
+  page.on("dialog", (d) => d.accept());
+  await loginViaUI(page, adminAcc.email);
+  await page.waitForURL(/\/community/, { timeout: 30_000 });
+  await page.goto("/community/admin");
+
+  // 제재 관리 섹션 행: 작성자 + "영구정지"로 스코핑(검토큐 카드와 구분).
+  const row = page
+    .locator("div.rounded-lg")
+    .filter({ hasText: victimNick })
+    .filter({ hasText: "영구정지" });
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await row.getByRole("button", { name: "제재 해제" }).click();
+
+  // 해제 반영: is_banned=false, 누적 벌점 0.
+  await expect(async () => {
+    const { data } = await db
+      .from("profiles")
+      .select("is_banned, penalty_points")
+      .eq("id", victimUser.id)
+      .single();
+    expect(data?.is_banned).toBe(false);
+    expect(data?.penalty_points).toBe(0);
+  }).toPass({ timeout: 15_000 });
+});

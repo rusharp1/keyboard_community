@@ -288,6 +288,27 @@ export async function getMyPenalties(userId: string): Promise<
   }[];
 }
 
+export type SanctionedUser = {
+  id: string;
+  nickname: string;
+  penalty_points: number;
+  suspended_until: string | null;
+  is_banned: boolean;
+};
+
+// 현재 제재 중(영구정지 또는 정지기간 미만료)인 유저 — admin 제재 해제용.
+export async function getSanctionedUsers(): Promise<SanctionedUser[]> {
+  const supabase = await createClient();
+  const nowIso = new Date().toISOString();
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, nickname, penalty_points, suspended_until, is_banned")
+    .or(`is_banned.eq.true,suspended_until.gt.${nowIso}`)
+    .order("penalty_points", { ascending: false })
+    .limit(100);
+  return (data as SanctionedUser[]) ?? [];
+}
+
 // 역할 관리용 유저 목록: 현재 운영진 + 활동 상위 후보.
 export async function getStaffAndCandidates(): Promise<{
   staff: AdminProfile[];

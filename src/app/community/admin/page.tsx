@@ -1,8 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireStaff } from "@/lib/auth/guards";
-import { getModerationQueue, getStaffAndCandidates } from "@/lib/community/queries";
-import { moderateDelete, moderateHide, setRole } from "@/app/community/actions";
+import {
+  getModerationQueue,
+  getSanctionedUsers,
+  getStaffAndCandidates,
+} from "@/lib/community/queries";
+import {
+  adminSetSanction,
+  moderateDelete,
+  moderateHide,
+  setRole,
+} from "@/app/community/actions";
 import ConfirmSubmitButton from "@/components/community/ConfirmSubmitButton";
 import PenaltyButton from "@/components/community/PenaltyButton";
 import { REASON_LABEL, ROLE_LABEL } from "@/lib/community/types";
@@ -20,6 +29,7 @@ export default async function AdminPage() {
   const { staff, candidates } = isAdmin
     ? await getStaffAndCandidates()
     : { staff: [], candidates: [] };
+  const sanctioned = isAdmin ? await getSanctionedUsers() : [];
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -209,6 +219,47 @@ export default async function AdminPage() {
                   >
                     운영진 승격
                   </button>
+                </form>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 제재 관리(admin 전용) — 현재 정지/영구정지 회원 해제 */}
+      {isAdmin && (
+        <section className="mt-8">
+          <h2 className="text-sm font-semibold text-foreground">
+            제재 관리 {sanctioned.length > 0 && `(${sanctioned.length})`}
+          </h2>
+          <div className="mt-1.5 space-y-1.5">
+            {sanctioned.length === 0 && (
+              <p className="text-sm text-muted">현재 제재 중인 회원이 없습니다.</p>
+            )}
+            {sanctioned.map((u) => (
+              <div
+                key={u.id}
+                className="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              >
+                <span>
+                  {u.nickname}{" "}
+                  <span className="text-xs text-accent">
+                    {u.is_banned
+                      ? "영구정지"
+                      : u.suspended_until
+                        ? `정지 ${new Date(u.suspended_until).toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}까지`
+                        : "정지"}
+                  </span>{" "}
+                  <span className="text-xs text-muted">· 벌점 {u.penalty_points}</span>
+                </span>
+                <form action={adminSetSanction}>
+                  <input type="hidden" name="user_id" value={u.id} />
+                  <ConfirmSubmitButton
+                    message="이 회원의 제재를 해제할까요? 누적 벌점도 0으로 초기화됩니다."
+                    className="rounded-md border border-border px-2.5 py-1 text-xs text-muted hover:text-accent"
+                  >
+                    제재 해제
+                  </ConfirmSubmitButton>
                 </form>
               </div>
             ))}
