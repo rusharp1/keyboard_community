@@ -545,6 +545,7 @@ export async function markNotificationRead(formData: FormData): Promise<void> {
       .update({ is_read: true })
       .eq("id", id)
       .eq("user_id", user.id);
+  revalidatePath("/", "layout"); // 종 배지(레이아웃)를 이동 후에도 정확히 갱신
   redirect(postId ? `/community/${postId}` : "/community");
 }
 
