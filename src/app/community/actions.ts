@@ -10,6 +10,7 @@ import {
   requireProfile,
   requireStaff,
   requireUser,
+  requireWriteAccess,
 } from "@/lib/auth/guards";
 import { BODY_MAX, COMMENT_MAX, TITLE_MAX } from "@/lib/community/limits";
 import { REPORT_REASONS, type ReportReason } from "@/lib/community/types";
@@ -62,7 +63,7 @@ export async function createPost(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const { supabase } = await requireProfile();
+  const { supabase } = await requireWriteAccess();
 
   const title = titleSchema.safeParse(formData.get("title"));
   const body = bodySchema.safeParse(formData.get("body"));
@@ -106,7 +107,7 @@ export async function updatePost(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const { supabase } = await requireProfile();
+  const { supabase } = await requireWriteAccess();
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "잘못된 요청입니다." };
 
@@ -142,7 +143,7 @@ export async function addComment(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const { supabase } = await requireProfile();
+  const { supabase } = await requireWriteAccess();
   const postId = String(formData.get("post_id") ?? "");
   const parentId = formData.get("parent_id");
   const body = commentSchema.safeParse(formData.get("body"));
@@ -169,7 +170,7 @@ export async function updateComment(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const { supabase } = await requireProfile();
+  const { supabase } = await requireWriteAccess();
   const id = String(formData.get("id") ?? "");
   const postId = String(formData.get("post_id") ?? "");
   const body = commentSchema.safeParse(formData.get("body"));
@@ -196,7 +197,7 @@ export async function deleteComment(formData: FormData): Promise<void> {
 }
 
 export async function toggleLike(formData: FormData): Promise<void> {
-  const { supabase, user } = await requireProfile();
+  const { supabase, user } = await requireWriteAccess();
   const postId = String(formData.get("post_id") ?? "");
   if (!postId) return;
 
@@ -220,7 +221,7 @@ export async function toggleLike(formData: FormData): Promise<void> {
 }
 
 export async function toggleCommentLike(formData: FormData): Promise<void> {
-  const { supabase, user } = await requireProfile();
+  const { supabase, user } = await requireWriteAccess();
   const commentId = String(formData.get("comment_id") ?? "");
   const postId = String(formData.get("post_id") ?? "");
   if (!commentId) return;
@@ -312,7 +313,7 @@ export async function reportTarget(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const { supabase, user } = await requireProfile();
+  const { supabase, user } = await requireWriteAccess();
   const targetType = String(formData.get("target_type") ?? "");
   const targetId = String(formData.get("target_id") ?? "");
   const reason = String(formData.get("reason") ?? "");
@@ -398,6 +399,65 @@ export async function setRole(formData: FormData): Promise<void> {
   if (userId === user.id) return; // 본인 역할은 UI에서 못 바꾼다.
 
   await supabase.from("profiles").update({ role }).eq("id", userId);
+  revalidatePath("/community/admin");
+}
+
+// 운영진: 신고 대상 글/댓글의 작성자에게 벌점 부과. penalties INSERT만 하면
+// 트리거(on_penalty_insert)가 누적·제재(정지/영구)·'penalty' 알림을 처리한다.
+// unique(target_type, target_id)로 같은 콘텐츠 중복 부과는 차단된다.
+export async function penalizeAuthor(formData: FormData): Promise<void> {
+  const { supabase, user } = await requireStaff();
+  const targetType = String(formData.get("target_type") ?? "");
+  const targetId = String(formData.get("target_id") ?? "");
+  const points = Number(formData.get("points"));
+  const memo = String(formData.get("memo") ?? "").trim().slice(0, 500) || null;
+  if ((targetType !== "post" && targetType !== "comment") || !targetId) return;
+  if (![1, 2, 3].includes(points)) return;
+
+  // 대상 작성자 + 소속 글 조회(댓글이면 post_id 따로).
+  let authorId: string | null = null;
+  let postId: string | null = null;
+  if (targetType === "post") {
+    const { data } = await supabase
+      .from("posts")
+      .select("user_id")
+      .eq("id", targetId)
+      .maybeSingle();
+    authorId = data?.user_id ?? null;
+    postId = targetId;
+  } else {
+    const { data } = await supabase
+      .from("comments")
+      .select("user_id, post_id")
+      .eq("id", targetId)
+      .maybeSingle();
+    authorId = data?.user_id ?? null;
+    postId = data?.post_id ?? null;
+  }
+  if (!authorId) return;
+
+  await supabase.from("penalties").insert({
+    user_id: authorId,
+    moderator_id: user.id,
+    points,
+    target_type: targetType,
+    target_id: targetId,
+    post_id: postId,
+    memo,
+  });
+  revalidatePath("/community/admin");
+}
+
+// admin: 제재 해제(감면). 정지/차단 플래그를 내리고 누적 벌점을 0으로 리셋한다.
+// penalties 이력은 보존(증분 누적이라 리셋이 이후 부과에도 유지됨).
+export async function adminSetSanction(formData: FormData): Promise<void> {
+  const { supabase } = await requireAdmin();
+  const userId = String(formData.get("user_id") ?? "");
+  if (!userId) return;
+  await supabase
+    .from("profiles")
+    .update({ penalty_points: 0, suspended_until: null, is_banned: false })
+    .eq("id", userId);
   revalidatePath("/community/admin");
 }
 

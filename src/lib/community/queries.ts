@@ -181,29 +181,76 @@ export async function getModerationQueue(): Promise<ModerationItem[]> {
 
   const [postsRes, commentsRes] = await Promise.all([
     postIds.length
-      ? supabase.from("posts").select("id, title, is_hidden").in("id", postIds)
-      : Promise.resolve({ data: [] as { id: string; title: string; is_hidden: boolean }[] }),
+      ? supabase.from("posts").select("id, title, is_hidden, user_id").in("id", postIds)
+      : Promise.resolve({
+          data: [] as { id: string; title: string; is_hidden: boolean; user_id: string }[],
+        }),
     commentIds.length
       ? supabase
           .from("comments")
-          .select("id, body, is_hidden, post_id")
+          .select("id, body, is_hidden, post_id, user_id")
           .in("id", commentIds)
       : Promise.resolve({
-          data: [] as { id: string; body: string; is_hidden: boolean; post_id: string }[],
+          data: [] as {
+            id: string;
+            body: string;
+            is_hidden: boolean;
+            post_id: string;
+            user_id: string;
+          }[],
         }),
   ]);
 
   const postMap = new Map((postsRes.data ?? []).map((p) => [p.id, p]));
   const commentMap = new Map((commentsRes.data ?? []).map((c) => [c.id, c]));
 
+  // 대상 작성자(벌점 부과 대상)의 현재 누적 벌점 + 이 콘텐츠로 이미 부과됐는지.
+  const authorIds = [
+    ...new Set([
+      ...(postsRes.data ?? []).map((p) => p.user_id),
+      ...(commentsRes.data ?? []).map((c) => c.user_id),
+    ]),
+  ];
+  const allTargetIds = [...groups.values()].map((g) => g.id);
+  const [authorsRes, penaltiesRes] = await Promise.all([
+    authorIds.length
+      ? supabase
+          .from("profiles")
+          .select("id, nickname, penalty_points")
+          .in("id", authorIds)
+      : Promise.resolve({
+          data: [] as { id: string; nickname: string; penalty_points: number }[],
+        }),
+    allTargetIds.length
+      ? supabase
+          .from("penalties")
+          .select("target_type, target_id")
+          .in("target_id", allTargetIds)
+      : Promise.resolve({ data: [] as { target_type: string; target_id: string }[] }),
+  ]);
+  const authorMap = new Map((authorsRes.data ?? []).map((a) => [a.id, a]));
+  const penalized = new Set(
+    (penaltiesRes.data ?? []).map((p) => `${p.target_type}:${p.target_id}`),
+  );
+
   return [...groups.values()].map((g) => {
+    const authorId =
+      g.type === "post" ? postMap.get(g.id)?.user_id : commentMap.get(g.id)?.user_id;
+    const author = authorId ? authorMap.get(authorId) : undefined;
+    const common = {
+      report_count: g.count,
+      reasons: [...g.reasons],
+      author_id: authorId ?? null,
+      author_nickname: author?.nickname ?? null,
+      author_penalty_points: author?.penalty_points ?? 0,
+      author_penalized: penalized.has(`${g.type}:${g.id}`),
+    };
     if (g.type === "post") {
       const p = postMap.get(g.id);
       return {
+        ...common,
         target_type: "post" as const,
         target_id: g.id,
-        report_count: g.count,
-        reasons: [...g.reasons],
         is_hidden: p?.is_hidden ?? false,
         preview: p?.title ?? "(삭제된 글)",
         post_id: g.id,
@@ -212,16 +259,33 @@ export async function getModerationQueue(): Promise<ModerationItem[]> {
     }
     const c = commentMap.get(g.id);
     return {
+      ...common,
       target_type: "comment" as const,
       target_id: g.id,
-      report_count: g.count,
-      reasons: [...g.reasons],
       is_hidden: c?.is_hidden ?? false,
       preview: c ? c.body.slice(0, 80) : "(삭제된 댓글)",
       post_id: c?.post_id ?? "",
       missing: !c,
     };
   });
+}
+
+// 내가 받은 벌점 이력(마이페이지 제재 배너용). RLS "penalties select own"로 본인만.
+export async function getMyPenalties(userId: string): Promise<
+  { points: number; memo: string | null; created_at: string; post_id: string | null }[]
+> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("penalties")
+    .select("points, memo, created_at, post_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as {
+    points: number;
+    memo: string | null;
+    created_at: string;
+    post_id: string | null;
+  }[];
 }
 
 // 역할 관리용 유저 목록: 현재 운영진 + 활동 상위 후보.

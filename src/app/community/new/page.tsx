@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireProfile } from "@/lib/auth/guards";
+import { requireWriteAccess } from "@/lib/auth/guards";
 import { getCategories } from "@/lib/community/queries";
 import { createPost } from "@/app/community/actions";
 import PostForm from "@/components/community/PostForm";
@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 };
 
 export default async function NewPostPage() {
-  // 로그인·프로필 가드(없으면 /login 또는 /onboarding).
-  const { profile } = await requireProfile();
+  // 로그인·프로필·쓰기 가드(미로그인→/login, 프로필 없음→/onboarding, 제재 중→/community/me).
+  const { profile } = await requireWriteAccess();
   const isStaff = profile.role !== "user";
   const categories = (await getCategories())
     .filter((c) => !c.admin_only || isStaff)

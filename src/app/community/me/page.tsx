@@ -7,10 +7,12 @@ import {
   getCategories,
   getLikedPosts,
   getMyComments,
+  getMyPenalties,
   getMyPosts,
 } from "@/lib/community/queries";
 import { levelFor } from "@/lib/community/types";
 import PostRow from "@/components/community/PostRow";
+import SanctionBanner from "@/components/community/SanctionBanner";
 import { formatDate } from "@/lib/community/format";
 
 export const metadata: Metadata = { title: "마이페이지 — 커뮤니티" };
@@ -42,15 +44,24 @@ export default async function MyPage({
           : "posts";
   const level = levelFor(profile.activity_score);
 
-  // 활성 탭만 조회 + 활동 요약(항상).
-  const [posts, comments, liked, bookmarks, categories, summary] = await Promise.all([
-    tab === "posts" ? getMyPosts(user.id) : Promise.resolve([]),
-    tab === "comments" ? getMyComments(user.id) : Promise.resolve([]),
-    tab === "likes" ? getLikedPosts(user.id) : Promise.resolve([]),
-    tab === "bookmarks" ? getBookmarkedPosts(user.id) : Promise.resolve([]),
-    getCategories(),
-    getActivitySummary(user.id),
-  ]);
+  // 제재 중이거나 누적 벌점이 있으면 벌점 이력도 함께(배너용).
+  const sanctioned =
+    profile.is_banned ||
+    (profile.suspended_until != null &&
+      new Date(profile.suspended_until).getTime() > Date.now());
+  const showPenalties = sanctioned || profile.penalty_points > 0;
+
+  // 활성 탭만 조회 + 활동 요약(항상) + 벌점 이력(필요 시).
+  const [posts, comments, liked, bookmarks, categories, summary, penalties] =
+    await Promise.all([
+      tab === "posts" ? getMyPosts(user.id) : Promise.resolve([]),
+      tab === "comments" ? getMyComments(user.id) : Promise.resolve([]),
+      tab === "likes" ? getLikedPosts(user.id) : Promise.resolve([]),
+      tab === "bookmarks" ? getBookmarkedPosts(user.id) : Promise.resolve([]),
+      getCategories(),
+      getActivitySummary(user.id),
+      showPenalties ? getMyPenalties(user.id) : Promise.resolve([]),
+    ]);
   const catName = new Map(categories.map((c) => [c.id, c.name]));
 
   const tabClass = (active: boolean) =>
@@ -74,6 +85,13 @@ export default async function MyPage({
       <Link href="/community" className="text-sm text-muted hover:text-foreground">
         ← 커뮤니티
       </Link>
+
+      <SanctionBanner
+        penaltyPoints={profile.penalty_points}
+        suspendedUntil={profile.suspended_until}
+        isBanned={profile.is_banned}
+        penalties={penalties}
+      />
 
       <div className="mt-3 flex items-end justify-between">
         <div>

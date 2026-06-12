@@ -643,3 +643,103 @@ create policy "bookmarks insert own"
 drop policy if exists "bookmarks delete own" on public.post_bookmarks;
 create policy "bookmarks delete own"
   on public.post_bookmarks for delete using (auth.uid() = user_id);
+
+-- =============================================================
+-- Phase 8 — 벌점(penalty) / 제재
+-- =============================================================
+-- 신고 자동숨김(on_report_insert)은 콘텐츠만 가린다. 운영자가 검토큐에서 "진짜 문제"로
+-- 확인하면 작성자에게 벌점을 부과하고, 누적되면 단계적 제재한다.
+--   3점 경고 / 5점 7일정지 / 8점 30일정지 / 10점 영구정지.
+-- on_report_insert와 동형: 운영자 액션은 penalties에 INSERT만, 트리거가 누적·제재·알림.
+-- (임계값/심각도 점수는 src/lib/community/types.ts 의 상수와 동기화할 것.)
+
+-- 14) profiles 제재 필드 -----------------------------------------
+alter table public.profiles
+  add column if not exists penalty_points  int         not null default 0,
+  add column if not exists suspended_until timestamptz,
+  add column if not exists is_banned       boolean     not null default false;
+
+-- 15) penalties 테이블(이력 + 누적 근거) -------------------------
+-- user_id=대상 작성자, moderator_id=부과한 운영자. 콘텐츠당 1회(unique).
+create table if not exists public.penalties (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references public.profiles (id) on delete cascade,
+  moderator_id uuid references public.profiles (id) on delete set null,
+  points       int  not null check (points between 1 and 3),
+  reason       text,
+  target_type  text not null check (target_type in ('post', 'comment')),
+  target_id    uuid not null,
+  post_id      uuid references public.posts (id) on delete set null,
+  memo         text,
+  created_at   timestamptz not null default now(),
+  unique (target_type, target_id)
+);
+
+create index if not exists penalties_user_idx
+  on public.penalties (user_id, created_at desc);
+
+alter table public.penalties enable row level security;
+
+-- 운영진만 부과(insert)·열람(select), 본인은 자기 벌점 열람 가능(사유 확인).
+drop policy if exists "penalties staff insert" on public.penalties;
+create policy "penalties staff insert"
+  on public.penalties for insert with check (public.is_staff());
+
+drop policy if exists "penalties staff select" on public.penalties;
+create policy "penalties staff select"
+  on public.penalties for select using (public.is_staff());
+
+drop policy if exists "penalties select own" on public.penalties;
+create policy "penalties select own"
+  on public.penalties for select using (auth.uid() = user_id);
+
+-- 16) penalties insert 트리거: 누적 계산 → 제재 적용 → 'penalty' 알림 ---
+-- 점수는 누적만 증가하므로 정지기간은 greatest로 에스컬레이트 전용(단축 안 함).
+-- ban(10점+)이 우선. 누적은 profiles.penalty_points에 증분 가산(재합산 아님) →
+-- admin이 penalty_points를 0으로 내리는 '제재 해제'가 이후 부과에도 유지된다.
+create or replace function public.on_penalty_insert()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  total int;
+begin
+  select greatest(0, penalty_points + new.points) into total
+  from public.profiles where id = new.user_id;
+
+  update public.profiles set
+    penalty_points = total,
+    is_banned = (total >= 10),
+    suspended_until = case
+      when total >= 10 then suspended_until
+      when total >= 8  then greatest(coalesce(suspended_until, now()), now() + interval '30 days')
+      when total >= 5  then greatest(coalesce(suspended_until, now()), now() + interval '7 days')
+      else suspended_until
+    end
+  where id = new.user_id;
+
+  -- 시스템 통보(prefs/매트릭스 비대상, 항상 발송) — 'locked'과 동일하게 직접 insert.
+  insert into public.notifications (user_id, type, post_id)
+  values (new.user_id, 'penalty', new.post_id);
+
+  return null;
+end;
+$$;
+
+drop trigger if exists penalties_after_insert on public.penalties;
+create trigger penalties_after_insert
+  after insert on public.penalties
+  for each row execute function public.on_penalty_insert();
+
+-- 17) notifications.type 에 'penalty' 추가(멱등 — 기존 check 제약 교체) ----
+do $$
+declare cname text;
+begin
+  select conname into cname from pg_constraint
+   where conrelid = 'public.notifications'::regclass and contype = 'c'
+   limit 1;
+  if cname is not null then
+    execute format('alter table public.notifications drop constraint %I', cname);
+  end if;
+  alter table public.notifications
+    add constraint notifications_type_check
+    check (type in ('comment', 'reply', 'like', 'notice', 'locked', 'penalty'));
+end $$;

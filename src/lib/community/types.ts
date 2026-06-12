@@ -103,6 +103,21 @@ export const REASON_LABEL: Record<ReportReason, string> = Object.fromEntries(
 // 자동숨김 임계값(서로 다른 신고자 수). DB 트리거와 일치.
 export const REPORT_HIDE_THRESHOLD = 5;
 
+// 벌점 심각도(운영자 선택). value는 DB penalties.points(1~3)와 일치.
+export const PENALTY_SEVERITIES = [
+  { value: 1, label: "경미 (+1)" },
+  { value: 2, label: "보통 (+2)" },
+  { value: 3, label: "중대 (+3)" },
+] as const;
+
+// 누적 벌점 → 제재 임계값. DB on_penalty_insert 트리거와 동기화해야 함.
+export const PENALTY_THRESHOLDS = {
+  warn: 3, // 경고 알림
+  suspend7: 5, // 7일 활동정지
+  suspend30: 8, // 30일 활동정지
+  ban: 10, // 영구 이용정지
+} as const;
+
 export type ModerationItem = {
   target_type: "post" | "comment";
   target_id: string;
@@ -112,6 +127,10 @@ export type ModerationItem = {
   preview: string; // 글 제목 또는 댓글 본문 일부
   post_id: string; // 링크용(글이면 자기 자신, 댓글이면 소속 글)
   missing: boolean; // 대상이 이미 삭제됨
+  author_id: string | null; // 대상 작성자(벌점 부과 대상)
+  author_nickname: string | null;
+  author_penalty_points: number; // 작성자 누적 벌점
+  author_penalized: boolean; // 이 콘텐츠로 이미 벌점 부과됨(중복 방지 표시)
 };
 
 export type AdminProfile = {
@@ -127,7 +146,8 @@ export type NotificationType =
   | "reply"
   | "like"
   | "notice"
-  | "locked"; // 신고 누적 자동숨김 통보(시스템, 설정 비대상)
+  | "locked" // 신고 누적 자동숨김 통보(시스템, 설정 비대상)
+  | "penalty"; // 운영자 벌점 부과 통보(시스템, 설정 비대상)
 
 export type NotificationItem = {
   id: string;

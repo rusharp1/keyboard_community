@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireProfile } from "@/lib/auth/guards";
+import { requireWriteAccess } from "@/lib/auth/guards";
 import { getPost } from "@/lib/community/queries";
 import { updatePost } from "@/app/community/actions";
 import PostForm from "@/components/community/PostForm";
@@ -16,7 +16,7 @@ export default async function EditPostPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { user, profile } = await requireProfile();
+  const { user, profile } = await requireWriteAccess();
   const post = await getPost(id);
   if (!post) notFound();
 

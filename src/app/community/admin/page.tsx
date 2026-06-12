@@ -4,6 +4,7 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getModerationQueue, getStaffAndCandidates } from "@/lib/community/queries";
 import { moderateDelete, moderateHide, setRole } from "@/app/community/actions";
 import ConfirmSubmitButton from "@/components/community/ConfirmSubmitButton";
+import PenaltyButton from "@/components/community/PenaltyButton";
 import { REASON_LABEL, ROLE_LABEL } from "@/lib/community/types";
 
 export const metadata: Metadata = {
@@ -75,8 +76,21 @@ export default async function AdminPage() {
                   )}
                 </p>
 
+                {!item.missing && item.author_id && (
+                  <p className="mt-1.5 text-xs text-muted">
+                    작성자 {item.author_nickname ?? "(알 수 없음)"} · 누적 벌점{" "}
+                    <span
+                      className={
+                        item.author_penalty_points > 0 ? "font-medium text-accent" : ""
+                      }
+                    >
+                      {item.author_penalty_points}점
+                    </span>
+                  </p>
+                )}
+
                 {!item.missing && (
-                  <div className="mt-2 flex items-center gap-2 text-xs">
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                     <form action={moderateHide}>
                       <input type="hidden" name="target_type" value={item.target_type} />
                       <input type="hidden" name="target_id" value={item.target_id} />
@@ -102,6 +116,14 @@ export default async function AdminPage() {
                         삭제
                       </ConfirmSubmitButton>
                     </form>
+                    {item.author_id && (
+                      <PenaltyButton
+                        targetType={item.target_type}
+                        targetId={item.target_id}
+                        authorNickname={item.author_nickname}
+                        alreadyPenalized={item.author_penalized}
+                      />
+                    )}
                   </div>
                 )}
 
