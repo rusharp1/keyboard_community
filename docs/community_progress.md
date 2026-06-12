@@ -84,6 +84,7 @@ npm run build                             # 컴파일(마크다운 RSC 포함)
 - **Playwright E2E `e2e/05-penalty.spec.ts`: 5/5 ✅**(Phase 8 정지 게이트) — `suspended_until` **미래 → 글쓰기 차단(/community/me + "활동정지 중" 배너)**, **과거(만료) → 글쓰기 폼 정상(해제)**, **is_banned → 차단 + "영구 이용정지" 배너**, **정지 중 댓글 제출 → 액션 가드가 /community/me로 차단**, 제재 없음 → 정상(회귀). 제재 상태는 `setSanction`(service_role)로 직접 세팅해 기간 경계 시뮬레이션. ⚠️ dev 서버가 떠 있을 때 페이지 가드 수정이 **HMR 미반영**으로 stale할 수 있음 → 재실행 전 dev 서버 재시작 권장.
 - **Playwright E2E `e2e/06-penalty-admin.spec.ts`: 2/2 ✅**(Phase 8 운영자 부과/해제 2계정) — service_role로 신고 5건 자동숨김 시드 → **admin 로그인→`/community/admin` 검토큐→심각도 선택+벌점 부과** → (a)같은 콘텐츠 **"벌점 부과됨" 중복 차단**, (b)DB 작성자 누적 +2·`'penalty'` 알림 1건, (c)작성자 2번째 컨텍스트에서 **종 "안 읽음" 배지 + /community/me "누적 벌점 +2점" 배너**. ② **제재 관리** 섹션(admin 전용)에서 영구정지 회원 **"제재 해제"→is_banned=false·벌점 0**. confirm 다이얼로그는 `page.on("dialog",accept)`.
 - **Playwright E2E `e2e/07-realtime-bell.spec.ts`: 1/1 ✅(라이브 Vercel 대상)** — 로그인 상태에서 본인 `notifications` INSERT(service_role) → **페이지 리로드 없이** 종 "안 읽음" 배지 등장(Realtime 구독→`router.refresh`). `test.use({ baseURL: "https://keyboard-community.vercel.app" })`로 배포본 직접 검증. (같은 Supabase라 로컬도 동일.)
+- **Playwright E2E `e2e/08-realtime-2accounts.spec.ts`: 1/1 ✅(라이브 2계정)** — A가 글 상세에 머문 채 **B가 댓글→A 종 배지 0→1**, A `like_bell` ON 후 **B가 좋아요→배지 1→2**, 모두 **리로드 없이**. 실제 2계정 행위(notify 트리거)→Realtime 전파 검증.
 
 ### 자동화로 커버됨(재확인 불필요)
 글 작성·상세, 댓글 작성, 좋아요 토글, 마크다운 렌더 & XSS 무력화, 마이페이지 "내 글", 북마크 토글, 태그 필터, 공개 프로필, 비로그인 글쓰기 가드 → `04`가 검증. **벌점 기간 기반 정지/영구정지/만료 해제 게이트(글쓰기·댓글) → `05`가 검증. 운영자 벌점 부과 UI→누적·중복차단·알림·배너(2계정) → `06`이 검증.**
@@ -116,7 +117,7 @@ npm run build                             # 컴파일(마크다운 RSC 포함)
 - [ ] **종 드롭다운**: 모바일에서 좌측 안 잘리고 화면 안에 표시
 - [ ] **검색**: 버튼 가로 유지 + 입력 X(또는 비우기) → 전체 목록 복귀
 - [ ] **댓글 액션**: 좋아요·답글·신고·삭제 한 줄, 밑선 정렬
-- [x] **알림 Realtime(새로고침 없이 종 배지 증가)**: 라이브에서 e2e `07`로 검증(알림 INSERT→배지 즉시 등장). 남은 수동: "모두 읽음"→배지 즉시 0 + 재방문 유지(취소 안 됨)·2계정 댓글/좋아요 시각 확인.
+- [x] **알림 Realtime(새로고침 없이 종 배지 증가)**: 라이브에서 e2e `07`(직접 INSERT)·`08`(**2계정 댓글/좋아요**)로 검증. 남은 수동: "모두 읽음"→배지 즉시 0 + 재방문 유지(취소 안 됨) 시각 확인뿐.
 - [ ] **운영자 등급**: admin/moderator 글·댓글에 "운영자/운영진" 표시(활동등급 대신)
 
 **막힘 / 나중**
