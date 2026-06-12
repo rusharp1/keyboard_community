@@ -85,7 +85,7 @@ export function levelFor(score: number): Level {
 }
 
 export const ROLE_LABEL: Record<Author["role"], string | null> = {
-  admin: "운영자",
+  admin: "최고운영진",
   moderator: "운영진",
   user: null,
 };

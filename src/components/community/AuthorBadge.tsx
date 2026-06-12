@@ -2,7 +2,7 @@ import Link from "next/link";
 import { levelFor, ROLE_LABEL, type Author } from "@/lib/community/types";
 
 // 작성자 표시: 닉네임 + 등급.
-// 운영진(admin/moderator)은 활동등급(새싹/일반…) 대신 "운영자/운영진"을 등급으로 표시.
+// 운영진(admin/moderator)은 활동등급(새싹/일반…) 대신 "최고운영진/운영진"을 등급으로 표시.
 // 일반 유저는 활동등급(표시 전용)을 표시.
 // href가 있으면 닉네임을 공개 프로필 링크로(앵커 밖 영역에서만 사용 — PostRow 내부 X).
 export default function AuthorBadge({

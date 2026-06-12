@@ -38,6 +38,6 @@ export function notificationText(
     case "locked":
       return "신고가 누적되어 회원님의 게시물이 숨김 처리되었어요";
     case "penalty":
-      return "운영자가 회원님의 게시물에 벌점을 부과했어요. 마이페이지에서 확인하세요";
+      return "운영진이 회원님의 게시물에 벌점을 부과했어요. 마이페이지에서 확인하세요";
   }
 }
