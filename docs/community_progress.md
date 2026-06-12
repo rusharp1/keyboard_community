@@ -87,6 +87,7 @@ npm run build                             # 컴파일(마크다운 RSC 포함)
 - verify-phase2: **8/8 ✅** · phase3: **5/5 ✅** · phase4: **10/10 ✅** · phase5: **7/7 ✅** · **phase8: 8/8 ✅**(벌점 2/3/5→7일/8→30일/10→영구·알림 5건·중복차단·범위 check)
 - **phase9: 8/8 ✅**(다축 집계 종합 4.00·활동점수+2·1인1아이템 unique·별점 1~5 check·2건 종합 2.5·신고 5명 자동숨김·locked 알림·숨김 집계 제외)
 - **Playwright E2E `e2e/10-reviews.spec.ts`: 2/2 ✅**(축 상세 다축 별점 작성→평균/목록 반영·재작성=upsert 수정, 글쓰기 아이템 태깅→도감 상세 '관련 후기 글' 노출. webpack 첫 컴파일 flaky→retry 통과)
+- **Playwright E2E `e2e/11-reviews-2accounts.spec.ts`: 1/1 ✅(라이브 2계정)** — A 5점 리뷰→개수+1, B가 같은 축 진입 시 **A 리뷰 보임**→B 1점 리뷰→개수+2, 리뷰 목록에 두 작성자 닉네임 모두·평균 합산(3.0), A 새로고침 반영. baseline 읽어 비파괴 검증.
 - `npm run build`: **green** (190 페이지, exit 0)
 - **Playwright E2E `e2e/04-community.spec.ts`: 9/9 ✅** (태그 1건 webpack 첫 컴파일로 flaky→retry 통과) — 글 작성→상세, 댓글, 좋아요 토글, 마크다운+XSS(브라우저에서 `window.__xss` 미정의·`<script>` DOM 미주입·`javascript:` 링크 0개 확인), 마이페이지 내 글, **북마크 토글→저장 탭, 상세 태그 클릭→필터, 공개 프로필+활동요약**, 비로그인 글쓰기→/login. 실행: `npx playwright test e2e/04-community.spec.ts`(dev 서버 webpack 자동 기동, 긴 명령은 로그파일+백그라운드 권장).
 - **Playwright E2E `e2e/05-penalty.spec.ts`: 5/5 ✅**(Phase 8 정지 게이트) — `suspended_until` **미래 → 글쓰기 차단(/community/me + "활동정지 중" 배너)**, **과거(만료) → 글쓰기 폼 정상(해제)**, **is_banned → 차단 + "영구 이용정지" 배너**, **정지 중 댓글 제출 → 액션 가드가 /community/me로 차단**, 제재 없음 → 정상(회귀). 제재 상태는 `setSanction`(service_role)로 직접 세팅해 기간 경계 시뮬레이션. ⚠️ dev 서버가 떠 있을 때 페이지 가드 수정이 **HMR 미반영**으로 stale할 수 있음 → 재실행 전 dev 서버 재시작 권장.
