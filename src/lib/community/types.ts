@@ -107,12 +107,17 @@ export const REASON_LABEL: Record<ReportReason, string> = Object.fromEntries(
 // 자동숨김 임계값(서로 다른 신고자 수). DB 트리거와 일치.
 export const REPORT_HIDE_THRESHOLD = 5;
 
-// 벌점 심각도(운영자 선택). value는 DB penalties.points(1~3)와 일치.
+// 벌점 심각도(운영자 선택). value는 DB penalties.points check(1~5)와 일치.
+// 심각(+5)은 한방으로 누적 5점=7일 정지 임계를 넘기는 고수위(부과 시 2단계 확인).
 export const PENALTY_SEVERITIES = [
   { value: 1, label: "경미 (+1)" },
   { value: 2, label: "보통 (+2)" },
   { value: 3, label: "중대 (+3)" },
+  { value: 5, label: "심각 (+5, 즉시 정지)" },
 ] as const;
+
+// 부과 가능한 벌점 값(심각도 value 집합). 서버·UI 공통 검증에 사용.
+export const PENALTY_POINTS = PENALTY_SEVERITIES.map((s) => s.value) as readonly number[];
 
 // 누적 벌점 → 제재 임계값. DB on_penalty_insert 트리거와 동기화해야 함.
 export const PENALTY_THRESHOLDS = {

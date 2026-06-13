@@ -13,7 +13,7 @@ import {
   requireWriteAccess,
 } from "@/lib/auth/guards";
 import { BODY_MAX, COMMENT_MAX, TITLE_MAX } from "@/lib/community/limits";
-import { REPORT_REASONS, type ReportReason } from "@/lib/community/types";
+import { PENALTY_POINTS, REPORT_REASONS, type ReportReason } from "@/lib/community/types";
 import { getItemMeta, parseItemRef } from "@/data/items";
 
 const MAX_IMAGES = 5;
@@ -476,7 +476,7 @@ export async function penalizeAuthor(formData: FormData): Promise<void> {
     !targetId
   )
     return;
-  if (![1, 2, 3].includes(points)) return;
+  if (!PENALTY_POINTS.includes(points)) return;
 
   // 대상 작성자 + 소속 글 조회(댓글이면 post_id 따로, 리뷰는 글 없음).
   let authorId: string | null = null;

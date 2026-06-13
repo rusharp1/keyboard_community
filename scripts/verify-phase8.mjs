@@ -121,16 +121,27 @@ try {
     ? ok("같은 콘텐츠 중복 부과 차단(unique)")
     : no(`중복 부과 차단 실패: ${dup.error?.message ?? "에러 없음"}`);
 
-  // 점수 범위(1~3) check 위반 차단.
+  // 점수 범위(1~5) check 위반 차단(6은 거부).
   const bad = await db.from("penalties").insert({
     user_id: authorId,
-    points: 5,
+    points: 6,
     target_type: "post",
     target_id: crypto.randomUUID(),
   });
   bad.error && /check|violates|range|between/i.test(bad.error.message)
-    ? ok("점수 1~3 범위 check 차단")
+    ? ok("점수 1~5 범위 check 차단(6 거부)")
     : no(`점수 범위 check 실패: ${bad.error?.message ?? "에러 없음"}`);
+
+  // '심각(+5)' 한 방 → 누적 5점=7일 정지 임계 도달(즉시 정지) 확인.
+  const sev = await db.from("penalties").insert({
+    user_id: authorId,
+    points: 5,
+    target_type: "comment",
+    target_id: crypto.randomUUID(),
+  });
+  sev.error
+    ? no(`+5 부과 실패(1~5 허용 안 됨?): ${sev.error.message}`)
+    : ok("심각(+5) 부과 허용(1~5 범위)");
 } catch (e) {
   no(`예외: ${e.message}`);
 } finally {

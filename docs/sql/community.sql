@@ -665,7 +665,7 @@ create table if not exists public.penalties (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null references public.profiles (id) on delete cascade,
   moderator_id uuid references public.profiles (id) on delete set null,
-  points       int  not null check (points between 1 and 3),
+  points       int  not null check (points between 1 and 5),
   reason       text,
   target_type  text not null check (target_type in ('post', 'comment')),
   target_id    uuid not null,
@@ -728,6 +728,20 @@ drop trigger if exists penalties_after_insert on public.penalties;
 create trigger penalties_after_insert
   after insert on public.penalties
   for each row execute function public.on_penalty_insert();
+
+-- 16b) penalties.points 범위 1~5로 확장(멱등 — '심각 +5' 심각도 지원, 기존 check 교체) ----
+do $$
+declare cname text;
+begin
+  select conname into cname from pg_constraint
+   where conrelid = 'public.penalties'::regclass and contype = 'c'
+     and pg_get_constraintdef(oid) ilike '%points%';
+  if cname is not null then
+    execute format('alter table public.penalties drop constraint %I', cname);
+  end if;
+  alter table public.penalties add constraint penalties_points_check
+    check (points between 1 and 5);
+end $$;
 
 -- 17) notifications.type 에 'penalty' 추가(멱등 — 기존 check 제약 교체) ----
 do $$
