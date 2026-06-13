@@ -26,5 +26,7 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: true,
     timeout: 120_000,
+    // 자동화 도배 방지 쿨다운 해제(운영은 항상 ON). 직접 dev 기동 시에도 동일 env 필요.
+    env: { RATE_LIMIT_OFF: "1" },
   },
 });

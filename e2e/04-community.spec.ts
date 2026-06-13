@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { newEmail, newNickname } from "./helpers/data";
 import { loginViaUI } from "./helpers/auth";
 import { createUser, deleteUserByEmail } from "./helpers/admin";
+import { fillBody } from "./helpers/post";
 
 // 커뮤니티 게시판 핵심 UI 흐름(글 작성·댓글·좋아요·마크다운/XSS·마이페이지·가드).
 // 데이터 계층(트리거·카운터·알림)은 scripts/verify-phase*.mjs가 검증 — 여기선 브라우저 흐름만.
@@ -31,7 +32,7 @@ async function createPost(
   await page.goto("/community/new");
   await page.locator("#category_id").selectOption({ label: category });
   await page.locator("#title").fill(title);
-  await page.locator("#body").fill(body);
+  await fillBody(page, body);
   if (tags) await page.locator("#tags").fill(tags);
   await page.getByRole("button", { name: "등록" }).click();
   await page.waitForURL(/\/community\/[0-9a-f-]{36}/i, { timeout: 30_000 });

@@ -3,6 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { newEmail, newNickname } from "./helpers/data";
 import { loginViaUI } from "./helpers/auth";
 import { createUser, deleteUserByEmail, serviceClient } from "./helpers/admin";
+import { fillBody } from "./helpers/post";
 
 // 라이브(Vercel) 2계정 실시간: A가 글 상세에 머문 채(리로드 없음) B가 댓글/좋아요를 하면
 // A의 헤더 종 배지가 즉시 증가하는지. 댓글은 기본 ON, 좋아요는 기본 OFF라 A의 like_bell을 켠다.
@@ -29,7 +30,7 @@ async function createPost(page: Page, title: string): Promise<string> {
   await page.goto("/community/new");
   await page.locator("#category_id").selectOption({ label: "자유" });
   await page.locator("#title").fill(title);
-  await page.locator("#body").fill("2계정 실시간 검증용 글");
+  await fillBody(page, "2계정 실시간 검증용 글");
   await page.getByRole("button", { name: "등록" }).click();
   await page.waitForURL(/\/community\/[0-9a-f-]{36}/i, { timeout: 30_000 });
   return page.url();

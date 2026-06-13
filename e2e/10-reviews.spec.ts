@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { newEmail, newNickname } from "./helpers/data";
 import { loginViaUI } from "./helpers/auth";
 import { createUser, deleteUserByEmail, serviceClient } from "./helpers/admin";
+import { fillBody } from "./helpers/post";
 
 // 도감 리뷰(Phase 9) — 다축 별점 작성/수정 + 아이템 태깅 후기 연결.
 // 데이터 계층(집계·중복·자동숨김)은 scripts/verify-phase9.mjs가 검증 — 여기선 브라우저 흐름.
@@ -70,7 +71,7 @@ test("글쓰기 아이템 태깅 → 도감 상세 '관련 후기 글' 노출", 
   await page.locator("#category_id").selectOption({ label: "자유" });
   const title = `리뷰연동글 ${Date.now()}`;
   await page.locator("#title").fill(title);
-  await page.locator("#body").fill("도감 태깅 검증");
+  await fillBody(page, "도감 태깅 검증");
   // 도감 항목 SearchableSelect: "선택 안 함" 버튼 열고 검색 → 항목 선택.
   await page.getByRole("button", { name: /선택 안 함/ }).click();
   await page.getByPlaceholder("도감 항목 검색...").fill(itemName?.trim().slice(0, 6) ?? slug);

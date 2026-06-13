@@ -3,6 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { newEmail, newNickname } from "./helpers/data";
 import { loginViaUI } from "./helpers/auth";
 import { createUser, deleteUserByEmail, setSanction } from "./helpers/admin";
+import { fillBody } from "./helpers/post";
 
 // 벌점제(Phase 8) — 기간 기반 활동정지 게이트(requireWriteAccess) 검증.
 // 데이터 계층(누적·임계값→suspended_until/is_banned)은 scripts/verify-phase8.mjs가 검증.
@@ -78,7 +79,7 @@ test("정지 중 댓글 작성 시도 → 액션 가드가 /community/me로 차�
   await page.goto("/community/new");
   await page.locator("#category_id").selectOption({ label: "자유" });
   await page.locator("#title").fill(`정지댓글테스트 ${Date.now()}`);
-  await page.locator("#body").fill("x");
+  await fillBody(page, "x");
   await page.getByRole("button", { name: "등록" }).click();
   await page.waitForURL(/\/community\/[0-9a-f-]{36}/i, { timeout: 30_000 });
   const postUrl = page.url();
