@@ -108,17 +108,40 @@ export default async function ReviewSection({
         />
       </div>
 
-      {/* 관련 후기 글(커뮤니티) */}
-      {related.length > 0 && (
-        <div className="mt-8">
-          <h3 className="mb-2 text-sm font-semibold text-muted">관련 후기 글</h3>
+      {/* 관련 후기 글(커뮤니티) — 항상 노출, 없으면 작성 유도 */}
+      <div className="mt-8">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-muted">관련 후기 글</h3>
+          <Link
+            href={
+              user
+                ? `/community/new?item=${itemType}:${slug}&category=review`
+                : "/login"
+            }
+            className="text-xs text-accent hover:underline"
+          >
+            후기 작성하기
+          </Link>
+        </div>
+        {related.length > 0 ? (
           <div className="space-y-2">
             {related.map((p) => (
               <PostRow key={p.id} post={p} />
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <Link
+            href={
+              user
+                ? `/community/new?item=${itemType}:${slug}&category=review`
+                : "/login"
+            }
+            className="block rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted transition-colors hover:border-accent/60 hover:text-foreground"
+          >
+            아직 후기가 없어요. 첫 후기를 남겨보세요 →
+          </Link>
+        )}
+      </div>
     </section>
   );
 }
