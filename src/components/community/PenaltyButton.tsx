@@ -25,12 +25,24 @@ export default function PenaltyButton({
       action={penalizeAuthor}
       className="flex items-center gap-1.5"
       onSubmit={(e) => {
+        const points = Number(new FormData(e.currentTarget).get("points"));
         if (
           !window.confirm(
             `${authorNickname ?? "작성자"}님에게 벌점을 부과할까요? 누적에 따라 활동정지·영구정지될 수 있습니다.`,
           )
-        )
+        ) {
           e.preventDefault();
+          return;
+        }
+        // '심각(+5)'은 한 방에 누적 5점=7일 정지 → 오선택 방지용 2단계 확인.
+        if (
+          points === 5 &&
+          !window.confirm(
+            "⚠️ '심각(+5)'은 부과 즉시 7일 활동정지가 적용됩니다. 정말 진행할까요?",
+          )
+        ) {
+          e.preventDefault();
+        }
       }}
     >
       <input type="hidden" name="target_type" value={targetType} />

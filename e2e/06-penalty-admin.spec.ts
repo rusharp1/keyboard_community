@@ -36,13 +36,13 @@ test.beforeAll(async () => {
     .from("posts")
     .insert({
       user_id: victimUser.id,
-      category_id: cat.id,
+      category_id: cat!.id,
       title: `[검증] 운영자 벌점 부과 ${Date.now()}`,
       body: "신고 누적 → 검토큐 → 벌점 부과 흐름 검증용.",
     })
     .select("id")
     .single();
-  postId = post.id;
+  postId = post!.id;
 
   // 서로 다른 신고자 5명 → 자동숨김 + 검토큐 등장.
   const reasons = ["spam", "abuse", "offtopic", "sexual", "etc"];
@@ -159,4 +159,56 @@ test("admin이 제재 관리에서 영구정지 해제 → 차단 풀림", async
     expect(data?.is_banned).toBe(false);
     expect(data?.penalty_points).toBe(0);
   }).toPass({ timeout: 15_000 });
+});
+
+test("심각(+5) 부과 → 작성자 즉시 7일 정지(2단계 확인)", async ({ page }) => {
+  // 새 피해자 + 신고 5건 글(검토큐 진입). 별도 계정이라 기존 테스트와 격리.
+  const v = newEmail("p5vic");
+  const vNick = newNickname("p5vic");
+  const vUser = await createUser(v.email, vNick, { confirmed: true });
+  const { data: cat } = await db.from("categories").select("id").eq("slug", "free").single();
+  const { data: post } = await db
+    .from("posts")
+    .insert({ user_id: vUser.id, category_id: cat!.id, title: `[검증] +5 ${Date.now()}`, body: "x" })
+    .select("id")
+    .single();
+  const pid = post!.id;
+  const reps: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    const e = newEmail(`p5rep${i}`);
+    reps.push(e.email);
+    const r = await createUser(e.email, newNickname(`p5rep${i}`), { confirmed: true });
+    await db.from("reports").insert({ reporter_id: r.id, target_type: "post", target_id: pid, reason: "spam" });
+  }
+
+  try {
+    page.on("dialog", (d) => d.accept()); // 2단계 confirm 모두 수락
+    await loginViaUI(page, adminAcc.email);
+    await page.waitForURL(/\/community/, { timeout: 30_000 });
+    await page.goto("/community/admin");
+
+    const card = page.locator("div.rounded-lg").filter({ hasText: vNick });
+    await card.getByRole("combobox").selectOption({ label: "심각 (+5, 즉시 정지)" });
+    await card.getByRole("button", { name: "벌점 부과" }).click();
+    await expect(card.getByText("벌점 부과됨")).toBeVisible({ timeout: 30_000 });
+
+    // 즉시 7일 정지: points=5, is_banned=false, suspended_until 미래.
+    await expect(async () => {
+      const { data } = await db
+        .from("profiles")
+        .select("penalty_points, suspended_until, is_banned")
+        .eq("id", vUser.id)
+        .single();
+      expect(data?.penalty_points).toBe(5);
+      expect(data?.is_banned).toBe(false);
+      expect(
+        !!data?.suspended_until && new Date(data.suspended_until).getTime() > Date.now(),
+      ).toBe(true);
+    }).toPass({ timeout: 15_000 });
+  } finally {
+    await db.from("reports").delete().eq("target_type", "post").eq("target_id", pid);
+    await db.from("posts").delete().eq("id", pid);
+    await deleteUserByEmail(v.email).catch(() => {});
+    for (const e of reps) await deleteUserByEmail(e).catch(() => {});
+  }
 });
