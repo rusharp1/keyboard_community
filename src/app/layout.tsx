@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -14,10 +15,33 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = "https://keyboard-community.vercel.app";
+const SITE_NAME = "키보드 커뮤니티";
+const SITE_DESC =
+  "기계식 키보드 축(스위치)·키캡·키보드 도감과 타건음, 다축 별점 리뷰·커뮤니티.";
+
 export const metadata: Metadata = {
-  title: "키보드 커뮤니티 — 축 도감 & 타건음",
-  description:
-    "기계식 키보드 축(스위치)의 이름·색상·특성을 정리하고, 축별 타건음을 유튜브·인스타그램으로 들어볼 수 있는 커뮤니티.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "키보드 커뮤니티 — 축·키캡·키보드 도감 & 타건음",
+    template: "%s",
+  },
+  description: SITE_DESC,
+  applicationName: SITE_NAME,
+  keywords: ["기계식키보드", "축", "스위치", "키캡", "키보드", "타건음", "도감", "리뷰"],
+  openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    siteName: SITE_NAME,
+    url: SITE_URL,
+    title: "키보드 커뮤니티 — 축·키캡·키보드 도감 & 타건음",
+    description: SITE_DESC,
+  },
+  twitter: {
+    card: "summary",
+    title: "키보드 커뮤니티",
+    description: SITE_DESC,
+  },
 };
 
 export default function RootLayout({
@@ -34,6 +58,7 @@ export default function RootLayout({
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
+        <Analytics />
       </body>
     </html>
   );

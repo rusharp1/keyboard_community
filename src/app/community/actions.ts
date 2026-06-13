@@ -12,7 +12,14 @@ import {
   requireUser,
   requireWriteAccess,
 } from "@/lib/auth/guards";
-import { BODY_MAX, COMMENT_MAX, TITLE_MAX } from "@/lib/community/limits";
+import {
+  BODY_MAX,
+  COMMENT_COOLDOWN_SEC,
+  COMMENT_MAX,
+  POST_COOLDOWN_SEC,
+  REVIEW_COOLDOWN_SEC,
+  TITLE_MAX,
+} from "@/lib/community/limits";
 import { PENALTY_POINTS, REPORT_REASONS, type ReportReason } from "@/lib/community/types";
 import { getItemMeta, parseItemRef } from "@/data/items";
 
@@ -60,11 +67,34 @@ function parseTags(raw: FormDataEntryValue | null): string[] {
   return [...seen];
 }
 
+type DB = Awaited<ReturnType<typeof createClient>>;
+
+// 같은 유저의 직전 작성 이후 쿨다운 미달이면 true(차단). created_at 기반(신규 테이블 불필요).
+async function isRateLimited(
+  supabase: DB,
+  table: "posts" | "comments",
+  userId: string,
+  seconds: number,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from(table)
+    .select("created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const last = (data as { created_at: string } | null)?.created_at;
+  if (!last) return false;
+  return Date.now() - new Date(last).getTime() < seconds * 1000;
+}
+
+const COOLDOWN_MSG = "잠시 후 다시 시도해 주세요 (도배 방지).";
+
 export async function createPost(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const { supabase } = await requireWriteAccess();
+  const { supabase, user } = await requireWriteAccess();
 
   const title = titleSchema.safeParse(formData.get("title"));
   const body = bodySchema.safeParse(formData.get("body"));
@@ -77,9 +107,8 @@ export async function createPost(
     fieldErrors.category_id = "카테고리를 선택하세요.";
   if (Object.keys(fieldErrors).length) return { fieldErrors };
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (await isRateLimited(supabase, "posts", user.id, POST_COOLDOWN_SEC))
+    return { error: COOLDOWN_MSG };
 
   // 도감 아이템 태깅(선택). "type:slug" 형태가 유효할 때만 저장.
   const item = parseItemRef(String(formData.get("item") ?? ""));
@@ -87,7 +116,7 @@ export async function createPost(
   const { data, error } = await supabase
     .from("posts")
     .insert({
-      user_id: user!.id,
+      user_id: user.id,
       category_id: categoryId,
       title: title.data,
       body: body.data,
@@ -153,20 +182,19 @@ export async function addComment(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const { supabase } = await requireWriteAccess();
+  const { supabase, user } = await requireWriteAccess();
   const postId = String(formData.get("post_id") ?? "");
   const parentId = formData.get("parent_id");
   const body = commentSchema.safeParse(formData.get("body"));
   if (!postId) return { error: "잘못된 요청입니다." };
   if (!body.success) return { fieldErrors: { body: body.error.issues[0].message } };
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (await isRateLimited(supabase, "comments", user.id, COMMENT_COOLDOWN_SEC))
+    return { error: COOLDOWN_MSG };
 
   const { error } = await supabase.from("comments").insert({
     post_id: postId,
-    user_id: user!.id,
+    user_id: user.id,
     parent_id: typeof parentId === "string" && parentId ? parentId : null,
     body: body.data,
   });
@@ -368,6 +396,18 @@ export async function upsertReview(formData: FormData): Promise<void> {
   const inRange = (n: number) => Number.isInteger(n) && n >= 1 && n <= 5;
   if (!inRange(axis1) || !inRange(axis2) || !inRange(axis3)) return;
   const body = String(formData.get("body") ?? "").trim().slice(0, 1000) || null;
+
+  // 도배 방지 쿨다운 — '다른' 아이템에 최근 작성한 리뷰가 있으면 차단(같은 아이템 수정은 허용).
+  const { data: recent } = await supabase
+    .from("reviews")
+    .select("created_at")
+    .eq("user_id", user.id)
+    .or(`item_type.neq.${item.type},item_slug.neq.${item.slug}`)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const last = (recent as { created_at: string } | null)?.created_at;
+  if (last && Date.now() - new Date(last).getTime() < REVIEW_COOLDOWN_SEC * 1000) return;
 
   await supabase.from("reviews").upsert(
     { user_id: user.id, item_type: item.type, item_slug: item.slug, axis1, axis2, axis3, body },
