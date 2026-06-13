@@ -57,5 +57,7 @@
 
 **운영 전 필수 — 커스텀 SMTP**: Supabase 내장 메일은 dev 전용(시간당 한도·스팸함 직행). 실사용자 공개 전 **Resend 등 SMTP 연결**로 한도·도달률 해결(E2E 03도 자동화 가능). 도메인: eu.org(무료·승인 느림)/GitHub 학생팩 .me/저가 도메인(연 수천원) 중 택. 네이버 로그인은 메일 안 보내 무관.
 
+**운영 전 필수 — 네이버 검수**: 네이버 앱이 개발 상태라 검수(API 사용 신청) 통과 전까지는 등록 멤버(현재 `shop2930@naver.com`)만 로그인 가능. 일반 공개 전 네이버 개발자센터에서 **검수 신청·승인** 필요(동의항목=이메일 필수 확인). 코드 변경 불필요 — 콘솔 작업.
+
 **커뮤니티 3단계 (✅ Phase 1~5 완료)**: `posts`/`comments`/`post_likes`/`comment_likes`/`reports`/`post_views`/`notifications`/`notification_prefs` + `categories`(DB-driven 10종). 역할 user/moderator/admin + 활동등급 표시, 신고 5명 자동숨김+검토큐, 인앱 알림(헤더 종)·설정 매트릭스, 댓글 좋아요, 본문 마크다운(XSS-safe). 글 작성 가드는 `requireProfile`. **상세 진행상황·파일지도·검증·남은일은 `docs/community_progress.md`**, DB는 `docs/sql/community.sql`(사용자가 SQL Editor에서 적용), 스펙은 플랜 `~/.claude/plans/md-peppy-seahorse.md`.
 - **후속(별도)**: 이메일 알림 활성화(SMTP/Resend + 잠금메일), 장터(전용 필드·별도 스펙), 앱 푸시. 2차 결정: 점수 가중치·등급 임계값, fan-out broadcast 전환, 익명 조회수 dedupe.
