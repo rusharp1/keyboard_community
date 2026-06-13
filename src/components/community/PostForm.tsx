@@ -5,8 +5,7 @@ import type { FormState } from "@/app/community/actions";
 import { BODY_MAX, TITLE_MAX } from "@/lib/community/limits";
 import { allItemOptions } from "@/data/items";
 import SearchableSelect from "@/components/SearchableSelect";
-import ImageUploader from "./ImageUploader";
-import Markdown from "./Markdown";
+import RichEditor from "./RichEditor";
 
 type CategoryOpt = { id: number; name: string };
 
@@ -15,7 +14,6 @@ type Initial = {
   title?: string;
   body?: string;
   tags?: string[];
-  images?: string[];
   category_id?: number;
   item?: string; // "type:slug" 형태(도감 항목 태깅)
 };
@@ -35,7 +33,6 @@ export default function PostForm({
   // controlled 입력 — 서버 액션 폼 자동 초기화로 검증 실패 시 값이 날아가는 것 방지.
   const [title, setTitle] = useState(initial.title ?? "");
   const [body, setBody] = useState(initial.body ?? "");
-  const [tab, setTab] = useState<"write" | "preview">("write");
 
   // 도감 항목 태깅. SearchableSelect는 라벨 문자열 기반 → 라벨↔"type:slug" 매핑.
   const itemOptions = useMemo(() => allItemOptions(), []);
@@ -103,60 +100,23 @@ export default function PostForm({
 
       <div>
         <div className="mb-1 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <label className="block text-sm text-muted" htmlFor="body">
-              내용 <span className="text-xs">(선택)</span>
-            </label>
-            <div className="flex gap-1 text-xs">
-              <button
-                type="button"
-                onClick={() => setTab("write")}
-                className={`rounded px-2 py-0.5 ${tab === "write" ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"}`}
-              >
-                쓰기
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab("preview")}
-                className={`rounded px-2 py-0.5 ${tab === "preview" ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"}`}
-              >
-                미리보기
-              </button>
-            </div>
-          </div>
-          <span className="text-[11px] text-muted">
+          <label className="block text-sm text-muted">
+            내용 <span className="text-xs">(선택)</span>
+          </label>
+          <span className={`text-[11px] ${body.length > BODY_MAX ? "text-accent" : "text-muted"}`}>
             {body.length}/{BODY_MAX}
           </span>
         </div>
-        {/* textarea는 항상 마운트(폼 값 유지) — 미리보기 땐 숨김. */}
-        <textarea
-          id="body"
-          name="body"
-          rows={12}
-          value={body}
-          maxLength={BODY_MAX}
-          onChange={(e) => setBody(e.target.value)}
-          className={`w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent ${tab === "preview" ? "hidden" : ""}`}
-        />
-        {tab === "preview" &&
-          (body.trim() ? (
-            <div className="min-h-[18rem] rounded-lg border border-border bg-surface px-3 py-2">
-              <Markdown>{body}</Markdown>
-            </div>
-          ) : (
-            <p className="min-h-[18rem] rounded-lg border border-border bg-surface px-3 py-2 text-sm text-muted">
-              미리볼 내용이 없습니다.
-            </p>
-          ))}
+        {/* WYSIWYG 에디터(서식 즉시 반영). 저장은 마크다운 문자열 → 아래 hidden input으로 제출. */}
+        <RichEditor value={body} onChange={setBody} />
+        <input type="hidden" name="body" value={body} />
         <p className="mt-1 text-[11px] text-muted">
-          마크다운 지원 — **굵게**, *기울임*, # 제목, - 목록, [링크](url), `코드`
+          도구 모음으로 제목·굵게·인용구·목록·링크·이미지를 넣을 수 있어요. 우하단 “마크다운”으로 직접 입력도 가능합니다.
         </p>
         {state.fieldErrors?.body && (
           <p className="mt-1 text-xs text-accent">{state.fieldErrors.body}</p>
         )}
       </div>
-
-      <ImageUploader initial={initial.images} />
 
       <div>
         <label className="mb-1 block text-sm text-muted" htmlFor="tags">

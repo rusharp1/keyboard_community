@@ -21,17 +21,8 @@ import {
   TITLE_MAX,
 } from "@/lib/community/limits";
 import { PENALTY_POINTS, REPORT_REASONS, type ReportReason } from "@/lib/community/types";
+import { extractImageUrls } from "@/lib/community/extractImages";
 import { getItemMeta, parseItemRef } from "@/data/items";
-
-const MAX_IMAGES = 5;
-
-// 폼에서 넘어온 이미지 URL들(브라우저에서 Storage 업로드 후 hidden input으로 전달).
-function parseImages(formData: FormData): string[] {
-  return formData
-    .getAll("images")
-    .filter((v): v is string => typeof v === "string" && v.length > 0)
-    .slice(0, MAX_IMAGES);
-}
 
 export type FormState = {
   error?: string;
@@ -76,6 +67,7 @@ async function isRateLimited(
   userId: string,
   seconds: number,
 ): Promise<boolean> {
+  if (process.env.RATE_LIMIT_OFF === "1") return false; // 테스트/자동화 환경에서만 해제
   const { data } = await supabase
     .from(table)
     .select("created_at")
@@ -121,7 +113,7 @@ export async function createPost(
       title: title.data,
       body: body.data,
       tags: parseTags(formData.get("tags")),
-      images: parseImages(formData),
+      images: extractImageUrls(body.data ?? ""),
       item_type: item?.type ?? null,
       item_slug: item?.slug ?? null,
     })
@@ -161,7 +153,7 @@ export async function updatePost(
       title: title.data,
       body: body.data,
       tags: parseTags(formData.get("tags")),
-      images: parseImages(formData),
+      images: extractImageUrls(body.data ?? ""),
       item_type: item?.type ?? null,
       item_slug: item?.slug ?? null,
     })
@@ -398,16 +390,18 @@ export async function upsertReview(formData: FormData): Promise<void> {
   const body = String(formData.get("body") ?? "").trim().slice(0, 1000) || null;
 
   // 도배 방지 쿨다운 — '다른' 아이템에 최근 작성한 리뷰가 있으면 차단(같은 아이템 수정은 허용).
-  const { data: recent } = await supabase
-    .from("reviews")
-    .select("created_at")
-    .eq("user_id", user.id)
-    .or(`item_type.neq.${item.type},item_slug.neq.${item.slug}`)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const last = (recent as { created_at: string } | null)?.created_at;
-  if (last && Date.now() - new Date(last).getTime() < REVIEW_COOLDOWN_SEC * 1000) return;
+  if (process.env.RATE_LIMIT_OFF !== "1") {
+    const { data: recent } = await supabase
+      .from("reviews")
+      .select("created_at")
+      .eq("user_id", user.id)
+      .or(`item_type.neq.${item.type},item_slug.neq.${item.slug}`)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const last = (recent as { created_at: string } | null)?.created_at;
+    if (last && Date.now() - new Date(last).getTime() < REVIEW_COOLDOWN_SEC * 1000) return;
+  }
 
   await supabase.from("reviews").upsert(
     { user_id: user.id, item_type: item.type, item_slug: item.slug, axis1, axis2, axis3, body },

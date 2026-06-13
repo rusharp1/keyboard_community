@@ -168,7 +168,9 @@ export default async function PostDetailPage({
         </div>
       )}
 
-      <PostImages images={post.images} />
+      {/* 본문에 인라인으로 들어간 이미지는 본문에서 이미 렌더되므로 갤러리에서 제외(중복 방지).
+          구 글의 첨부 전용 이미지(본문에 없는 것)만 하단 갤러리·라이트박스로 노출. */}
+      <PostImages images={post.images.filter((u) => !post.body.includes(u))} />
 
       <ViewTracker postId={post.id} />
 

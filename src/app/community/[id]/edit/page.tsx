@@ -43,7 +43,6 @@ export default async function EditPostPage({
           title: post.title,
           body: post.body,
           tags: post.tags,
-          images: post.images,
           item:
             post.item_type && post.item_slug
               ? `${post.item_type}:${post.item_slug}`
